@@ -1,0 +1,128 @@
+export const MIN_GRADE_HUNDREDTHS = 0
+export const MAX_GRADE_HUNDREDTHS = 2000
+
+export interface Student {
+  id: string
+  externalId: string
+  name: string
+  createdAt: string
+}
+
+export interface ExamSession {
+  id: string
+  title: string
+  year: number
+  semester?: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export interface AdminBarcode {
+  id: string
+  token: string
+  studentId: string
+  student: { externalId: string; name: string }
+  graded: boolean
+  gradeValue: number | null
+  gradedAt: string | null
+}
+
+export interface TeacherSafeBarcode {
+  token: string
+}
+
+export interface GradeResult {
+  id: string
+  value: number
+  gradedAt: string
+  barcode: {
+    token: string
+    student: { externalId: string; name: string }
+  }
+}
+
+export interface TeacherProgressItem {
+  token: string
+  graded: boolean
+}
+
+export interface MasterCandidate {
+  id: string
+  externalId: string
+  name: string
+  token: string | null
+  graded: boolean
+  gradeValue: number | null
+  gradedAt: string | null
+}
+
+export interface AuthUser {
+  id: string
+  email: string
+  role: 'ADMIN' | 'TEACHER'
+}
+
+export type Role = 'admin' | 'teacher'
+
+export function formatGrade(hundredths: number): string {
+  return (hundredths / 100).toFixed(2)
+}
+
+export function parseGradeInput(input: string): number {
+  const n = parseFloat(input.replace(',', '.'))
+  if (isNaN(n)) return NaN
+  return Math.round(n * 100)
+}
+
+export interface WindowAPI {
+  admin: {
+    importStudents: (data: { sessionId: string }) => Promise<{ success: boolean; count: number; barcodesGenerated: number; error?: string }>
+    addStudent: (data: { externalId: string; name: string; sessionId: string }) => Promise<{ success: boolean; student?: Student; error?: string }>
+    deleteStudent: (data: { id: string }) => Promise<{ success: boolean; error?: string }>
+    getStudents: () => Promise<Student[]>
+    generateBarcodeBatch: (data: { sessionId: string }) => Promise<{ count: number; error?: string }>
+    listBarcodes: (data: { sessionId: string }) => Promise<AdminBarcode[]>
+    getResults: (data: { sessionId: string }) => Promise<GradeResult[]>
+    exportCsv: (data: { sessionId: string; sessionLabel: string }) => Promise<{ success: boolean; path?: string }>
+    getMasterView: (data: { sessionId: string }) => Promise<MasterCandidate[]>
+  }
+  teacher: {
+    lookupToken: (data: { token: string }) => Promise<{ valid: boolean; alreadyGraded?: boolean | null; currentGrade?: number | null }>
+    saveGrade: (data: { token: string; value: number }) => Promise<{ success: boolean; error?: string }>
+    undoLast: () => Promise<{ success: boolean; token?: string }>
+    importPreview: () => Promise<ImportPreview | null>
+    importCommit: (data: { rows: ValidatedRow[]; acceptedStatuses: RowStatus[] }) => Promise<{ committed: number }>
+    listProgress: () => Promise<TeacherProgressItem[]>
+  }
+  file: {
+    saveCsv: (data: { content: string; defaultName: string }) => Promise<{ success: boolean; path?: string }>
+  }
+  auth: {
+    adminLogin: (data: { email: string; password: string }) => Promise<{ success: boolean; user?: AuthUser; error?: string }>
+    employeeLogin: (data: { email: string; password: string }) => Promise<{ success: boolean; user?: AuthUser; error?: string }>
+    employeeSignup: (data: { email: string; password: string }) => Promise<{ success: boolean; user?: AuthUser; error?: string }>
+    logout: () => Promise<{ success: boolean }>
+  }
+  session: {
+    list: () => Promise<ExamSession[]>
+    getActive: () => Promise<ExamSession | null>
+    create: (data: { title: string; year: number; semester?: string | null }) => Promise<{ success: boolean; session?: ExamSession; error?: string }>
+    setActive: (data: { id: string }) => Promise<{ success: boolean; error?: string }>
+    delete: (data: { id: string }) => Promise<{ success: boolean; error?: string }>
+  }
+}
+
+export type RowStatus = 'ok' | 'unknown_token' | 'already_graded' | 'invalid_grade' | 'duplicate_in_file'
+
+export interface ValidatedRow {
+  token: string
+  status: RowStatus
+  proposedValue: number
+  currentValue?: number | null
+  message?: string | null
+}
+
+export interface ImportPreview {
+  rows: ValidatedRow[]
+  summary: { ok: number; conflicts: number; errors: number }
+}

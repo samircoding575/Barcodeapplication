@@ -1,0 +1,58 @@
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #barcode-print-area,
+  #barcode-print-area * {
+    visibility: visible;
+  }
+
+  #barcode-print-area {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* Show the print-only header */
+  .print-header {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* 3-column grid for A4 portrait */
+  #barcode-print-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8mm;
+    padding: 10mm;
+    padding-top: 4mm;
+    page-break-inside: avoid;
+  }
+
+  .barcode-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    padding: 4mm;
+    border: 1px solid #E2E5EB;
+  }
+
+  .barcode-card svg {
+    width: 70mm !important;
+    height: 20mm !important;
+  }
+
+  .barcode-card-label {
+    font-size: 8pt;
+    text-align: center;
+    margin-top: 2mm;
+    word-break: break-all;
+  }
+
+  nav,
+  .no-print {
+    display: none !important;
+  }
+}

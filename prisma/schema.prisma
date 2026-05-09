@@ -1,0 +1,69 @@
+// Migration to PostgreSQL: change provider to "postgresql", update DATABASE_URL, run prisma migrate deploy.
+// No @db.* native types used — all field types are identical across SQLite and PostgreSQL.
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  role      String   @default("TEACHER")
+  pwdHash   String
+  createdAt DateTime @default(now())
+}
+
+model ExamSession {
+  id        String    @id @default(cuid())
+  title     String
+  year      Int
+  semester  String?
+  isActive  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  barcodes  Barcode[]
+}
+
+model Student {
+  id         String    @id @default(cuid())
+  externalId String    @unique
+  name       String
+  barcodes   Barcode[]
+  createdAt  DateTime  @default(now())
+}
+
+model Barcode {
+  id        String      @id @default(cuid())
+  token     String      @unique
+  student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  session   ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  createdAt DateTime    @default(now())
+  grade     Grade?
+
+  @@unique([studentId, sessionId])
+}
+
+model Grade {
+  id         String   @id @default(cuid())
+  barcode    Barcode  @relation(fields: [barcodeId], references: [id], onDelete: Cascade)
+  barcodeId  String   @unique
+  value      Int
+  gradedAt   DateTime @default(now())
+  gradedById String?
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  payload   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

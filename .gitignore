@@ -1,0 +1,7 @@
+node_modules/
+dist/
+out/
+prisma/qrecs.db
+prisma/qrecs.db-journal
+prisma/migrations/
+.env
