@@ -157,7 +157,7 @@ export function Import(): JSX.Element {
                     key={i}
                     onClick={() => setSelectedRow(i)}
                     className={`border-b border-divider/60 cursor-pointer transition-colors duration-100 ${
-                      i === selectedRow ? 'bg-navy/5' : i % 2 === 0 ? 'bg-paper hover:bg-surface' : 'bg-surface/60 hover:bg-surface'
+                      i === selectedRow ? 'bg-accent-50 border-l-2 border-brand-purple' : i % 2 === 0 ? 'bg-paper hover:bg-surface' : 'bg-surface/60 hover:bg-surface'
                     }`}
                   >
                     <td className="px-4 py-2.5 font-mono text-xs text-slate truncate max-w-[140px]">

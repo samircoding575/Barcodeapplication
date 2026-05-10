@@ -11,48 +11,62 @@
   #barcode-print-area {
     position: absolute;
     inset: 0;
+    width: 100%;
   }
 
   /* Show the print-only header */
   .print-header {
     display: block !important;
     visibility: visible !important;
+    width: 100%;
   }
 
-  /* 3-column grid for A4 portrait */
+  /* Fix for pagination: Use flex layout with wrapping instead of CSS grid */
   #barcode-print-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8mm;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     padding: 10mm;
     padding-top: 4mm;
-    page-break-inside: avoid;
+    gap: 8mm;
   }
 
   .barcode-card {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    /* Strict dimensions for standard 3-column labels */
+    width: 60mm;
+    height: 35mm;
+    box-sizing: border-box;
+    padding: 4mm;
+    border: 1px dashed #ccc; /* Guide line for cutting/labels */
+    /* Crucial pagination rules */
     page-break-inside: avoid;
     break-inside: avoid;
-    padding: 4mm;
-    border: 1px solid #E2E5EB;
   }
 
   .barcode-card svg {
-    width: 70mm !important;
-    height: 20mm !important;
+    width: 50mm !important;
+    height: 15mm !important;
   }
 
   .barcode-card-label {
     font-size: 8pt;
     text-align: center;
-    margin-top: 2mm;
+    margin-top: 3mm;
     word-break: break-all;
+    line-height: 1.2;
   }
 
   nav,
   .no-print {
     display: none !important;
+  }
+
+  /* Remove browser headers and footers */
+  @page {
+    margin: 5mm;
   }
 }

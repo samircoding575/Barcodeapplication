@@ -197,7 +197,7 @@ export function Students(): JSX.Element {
                   <div className="flex rounded-xl overflow-hidden border border-divider">
                     {(['all', 'graded', 'pending'] as StatusFilter[]).map((f) => (
                       <button key={f} onClick={() => setStatusFilter(f)}
-                        className={`px-3 py-1.5 text-xs font-semibold capitalize transition-colors duration-150 ${statusFilter === f ? 'bg-navy text-white' : 'bg-paper text-slate hover:bg-surface'}`}>
+                      className={`px-3 py-1.5 text-xs font-semibold capitalize transition-colors duration-150 ${statusFilter === f ? 'bg-brand-purple text-white shadow-sm' : 'bg-paper text-slate hover:bg-surface'}`}>
                         {f}
                       </button>
                     ))}
@@ -220,7 +220,7 @@ export function Students(): JSX.Element {
                     <tbody>
                       {filtered.map((c, i) => (
                         <tr key={c.id} onClick={() => setSelectedId(c.id === selectedId ? null : c.id)}
-                          className={`cursor-pointer border-b border-divider/60 transition-colors duration-100 ${c.id === selectedId ? 'bg-navy/5' : i % 2 === 0 ? 'bg-paper hover:bg-surface' : 'bg-surface/60 hover:bg-surface'}`}>
+                          className={`cursor-pointer border-b border-divider/60 transition-colors duration-100 ${c.id === selectedId ? 'bg-accent-50 border-l-2 border-brand-purple' : i % 2 === 0 ? 'bg-paper hover:bg-surface' : 'bg-surface/60 hover:bg-surface'}`}>
                           <td className="px-4 py-3 font-mono text-xs text-slate">{c.externalId}</td>
                           <td className="px-4 py-3 font-medium text-ink">{c.name}</td>
                           <td className="px-4 py-3 font-mono text-xs text-slate/70">

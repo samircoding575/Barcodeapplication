@@ -25,6 +25,15 @@ export const AdminChannels = {
   GET_RESULTS: 'admin/get-results',
   EXPORT_CSV: 'admin/export-csv',
   GET_MASTER_VIEW: 'admin/get-master-view',
+  LIST_EXAMINERS: 'admin/list-examiners',
+  DELETE_EXAMINER: 'admin/delete-examiner',
+  CLEAR_SESSION_GRADES: 'admin/clear-session-grades',
+  RESET_SYSTEM: 'admin/reset-system',
+  GET_SYSTEM_STATS: 'admin/get-system-stats',
+  GET_CONFIG: 'admin/get-config',
+  UPDATE_CONFIG: 'admin/update-config',
+  GET_DASHBOARD_DATA: 'admin/get-dashboard-data',
+  UPDATE_SESSION_THRESHOLDS: 'admin/update-session-thresholds',
 } as const
 
 export const TeacherChannels = {

@@ -249,4 +249,257 @@ export function registerAdminHandlers(): void {
       return { success: false, error: (err as Error).message }
     }
   })
+
+  // ── List examiner accounts ───────────────────────────────────────────────────
+  ipcMain.handle(AdminChannels.LIST_EXAMINERS, async () => {
+    try {
+      const users = await getDb().user.findMany({
+        where: { role: 'TEACHER' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, email: true, createdAt: true },
+      })
+      return users.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }))
+    } catch (err) {
+      console.error('[admin/list-examiners]', err)
+      return []
+    }
+  })
+
+  // ── Delete examiner account ──────────────────────────────────────────────────
+  ipcMain.handle(AdminChannels.DELETE_EXAMINER, async (_, { id }: { id: string }) => {
+    try {
+      await getDb().user.delete({ where: { id } })
+      return { success: true }
+    } catch (err) {
+      console.error('[admin/delete-examiner]', err)
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  // ── Clear all grades for a session ──────────────────────────────────────────
+  ipcMain.handle(AdminChannels.CLEAR_SESSION_GRADES, async (_, { sessionId }: { sessionId: string }) => {
+    try {
+      const db = getDb()
+      const barcodes = await db.barcode.findMany({ where: { sessionId }, select: { id: true } })
+      const barcodeIds = barcodes.map((b) => b.id)
+      const { count } = await db.grade.deleteMany({ where: { barcodeId: { in: barcodeIds } } })
+      await db.auditLog.create({
+        data: { action: 'CLEAR_SESSION_GRADES', payload: JSON.stringify({ sessionId, count }) },
+      })
+      return { success: true, count }
+    } catch (err) {
+      console.error('[admin/clear-session-grades]', err)
+      return { success: false, count: 0, error: (err as Error).message }
+    }
+  })
+
+  // ── Factory reset — wipe all data ────────────────────────────────────────────
+  ipcMain.handle(AdminChannels.RESET_SYSTEM, async () => {
+    try {
+      const db = getDb()
+      await db.$transaction([
+        db.auditLog.deleteMany(),
+        db.grade.deleteMany(),
+        db.barcode.deleteMany(),
+        db.examSession.deleteMany(),
+        db.student.deleteMany(),
+        db.user.deleteMany({ where: { role: 'TEACHER' } }),
+      ])
+      return { success: true }
+    } catch (err) {
+      console.error('[admin/reset-system]', err)
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  // ── System stats for Settings dashboard ─────────────────────────────────────
+  ipcMain.handle(AdminChannels.GET_SYSTEM_STATS, async () => {
+    try {
+      const db = getDb()
+      const [totalSessions, totalStudents, totalGrades, totalExaminers] = await Promise.all([
+        db.examSession.count(),
+        db.student.count(),
+        db.grade.count(),
+        db.user.count({ where: { role: 'TEACHER' } }),
+      ])
+      return { totalSessions, totalStudents, totalGrades, totalExaminers }
+    } catch (err) {
+      console.error('[admin/get-system-stats]', err)
+      return { totalSessions: 0, totalStudents: 0, totalGrades: 0, totalExaminers: 0 }
+    }
+  })
+
+  // ── App config (org name, defaults) ─────────────────────────────────────────
+  ipcMain.handle(AdminChannels.GET_CONFIG, async () => {
+    try {
+      const db = getDb()
+      const cfg = await db.appConfig.upsert({
+        where: { id: 'singleton' },
+        create: { id: 'singleton' },
+        update: {},
+      })
+      return { orgName: cfg.orgName, orgNameAr: cfg.orgNameAr }
+    } catch (err) {
+      console.error('[admin/get-config]', err)
+      return { orgName: 'Lebanese Bar Association', orgNameAr: 'نقابة المحامين في بيروت' }
+    }
+  })
+
+  ipcMain.handle(AdminChannels.UPDATE_CONFIG, async (_, patch: Partial<{ orgName: string; orgNameAr: string }>) => {
+    try {
+      const db = getDb()
+      await db.appConfig.upsert({
+        where: { id: 'singleton' },
+        create: { id: 'singleton', ...patch },
+        update: patch,
+      })
+      return { success: true }
+    } catch (err) {
+      console.error('[admin/update-config]', err)
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  // ── Update session admission thresholds ──────────────────────────────────────
+  ipcMain.handle(AdminChannels.UPDATE_SESSION_THRESHOLDS, async (_, { sessionId, passingGrade, maxPassCount }: { sessionId: string; passingGrade: number; maxPassCount: number | null }) => {
+    try {
+      await getDb().examSession.update({
+        where: { id: sessionId },
+        data: { passingGrade, maxPassCount },
+      })
+      return { success: true }
+    } catch (err) {
+      console.error('[admin/update-session-thresholds]', err)
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  // ── Dashboard data computation ───────────────────────────────────────────────
+  ipcMain.handle(AdminChannels.GET_DASHBOARD_DATA, async (_, { sessionId }: { sessionId: string }) => {
+    try {
+      const db = getDb()
+      const session = await db.examSession.findUnique({ where: { id: sessionId } })
+      if (!session) throw new Error('Session not found')
+
+      // Fetch all barcodes for this session with their grades and students
+      const barcodes = await db.barcode.findMany({
+        where: { sessionId },
+        include: {
+          grade: true,
+          student: { select: { externalId: true, name: true } },
+        },
+      })
+
+      const totalCandidates = barcodes.length
+      const graded = barcodes.filter((b) => b.grade !== null)
+      const gradedCount = graded.length
+      const ungradedCount = totalCandidates - gradedCount
+
+      // Sort graded candidates by grade descending to determine rank
+      const sorted = [...graded].sort((a, b) => b.grade!.value - a.grade!.value)
+
+      const passingGrade = session.passingGrade
+      const maxPassCount = session.maxPassCount
+
+      // Classify each graded candidate
+      let admittedCount = 0
+      let eligibleNotAdmittedCount = 0
+      let failedCount = 0
+
+      const rankedGraded = sorted.map((b, idx) => {
+        const grade = b.grade!.value
+        const eligible = grade >= passingGrade
+        let outcome: 'admitted' | 'eligible_not_admitted' | 'failed'
+        if (!eligible) {
+          outcome = 'failed'
+          failedCount++
+        } else if (maxPassCount !== null && admittedCount >= maxPassCount) {
+          outcome = 'eligible_not_admitted'
+          eligibleNotAdmittedCount++
+        } else {
+          outcome = 'admitted'
+          admittedCount++
+        }
+        return {
+          rank: idx + 1,
+          externalId: b.student.externalId,
+          name: b.student.name,
+          token: b.token,
+          grade,
+          outcome,
+        }
+      })
+
+      // Ungraded candidates appended at end (no rank)
+      const ungradedCandidates = barcodes
+        .filter((b) => b.grade === null)
+        .map((b) => ({
+          rank: null as null,
+          externalId: b.student.externalId,
+          name: b.student.name,
+          token: b.token,
+          grade: null as null,
+          outcome: 'ungraded' as const,
+        }))
+
+      // Statistics
+      const grades = sorted.map((b) => b.grade!.value)
+      const avgGrade = grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : null
+      const highestGrade = grades.length > 0 ? grades[0] : null
+      const lowestGrade = grades.length > 0 ? grades[grades.length - 1] : null
+
+      // Median
+      let medianGrade: number | null = null
+      if (grades.length > 0) {
+        const mid = Math.floor(grades.length / 2)
+        medianGrade = grades.length % 2 !== 0 ? grades[mid] : Math.round((grades[mid - 1] + grades[mid]) / 2)
+      }
+
+      // Standard deviation
+      let stdDev: number | null = null
+      if (grades.length > 1 && avgGrade !== null) {
+        const variance = grades.reduce((acc, g) => acc + Math.pow(g - avgGrade, 2), 0) / grades.length
+        stdDev = Math.round(Math.sqrt(variance))
+      }
+
+      // Grade distribution buckets — divide maxGrade into ~10 even buckets
+      const maxG = session.maxGrade
+      const bucketCount = 10
+      const bucketSize = Math.ceil(maxG / bucketCount)
+      const distribution = Array.from({ length: bucketCount }, (_, i) => {
+        const from = i * bucketSize
+        const to = Math.min(from + bucketSize, maxG)
+        const label = `${(from / 100).toFixed(0)}–${(to / 100).toFixed(0)}`
+        const count = grades.filter((g) => g >= from && g < to).length
+        return { label, from, to, count }
+      })
+      // Include maxGrade in last bucket
+      if (distribution.length > 0 && highestGrade === maxG) {
+        distribution[distribution.length - 1].count += grades.filter((g) => g === maxG).length
+      }
+
+      const passRate = gradedCount > 0 ? Math.round((admittedCount / gradedCount) * 100) : 0
+
+      return {
+        sessionId,
+        totalCandidates,
+        gradedCount,
+        ungradedCount,
+        admittedCount,
+        eligibleNotAdmittedCount,
+        failedCount,
+        passRate,
+        avgGrade,
+        medianGrade,
+        highestGrade,
+        lowestGrade,
+        stdDev,
+        distribution,
+        candidates: [...rankedGraded, ...ungradedCandidates],
+      }
+    } catch (err) {
+      console.error('[admin/get-dashboard-data]', err)
+      throw err
+    }
+  })
 }

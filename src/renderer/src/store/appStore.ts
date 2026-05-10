@@ -12,7 +12,7 @@ interface AppState {
   sessions: ExamSession[]
   loadSessions: () => Promise<void>
   setActiveSession: (id: string) => Promise<void>
-  createSession: (data: { title: string; year: number; semester?: string | null }) => Promise<{ success: boolean; error?: string }>
+  createSession: (data: { title: string; year: number; semester?: string | null; maxGrade?: number; step?: string; passingGrade?: number; maxPassCount?: number | null }) => Promise<{ success: boolean; error?: string }>
   deleteSession: (id: string) => Promise<{ success: boolean; error?: string }>
 }
 

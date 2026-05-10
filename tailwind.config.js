@@ -7,32 +7,49 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        /* ── Softretail Brand Palette (Flat & Modern) ─────────────────────────── */
+        /* Replaces old Navy. Used for navigation, headers, dark backgrounds */
         navy: {
-          DEFAULT: '#0B1E3F',
-          dark: '#061229',
-          light: '#1E3A6B',
+          DEFAULT: '#4A4A4A',
+          dark: '#333333',
+          light: '#666666',
         },
-        ink: '#0F172A',
-        slate: '#475569',
-        surface: '#F5F6F8',
+        ink: '#333333',
+        slate: '#666666',
+        surface: '#F4F6F9',
         paper: '#FFFFFF',
         divider: '#E2E5EB',
-        gold: {
-          DEFAULT: '#B8935A',
-          dark: '#8C6E3F',
+        
+        /* Replaces old Gold/Orange. Brand Purple for primary actions/focus */
+        accent: {
+          DEFAULT: '#7B2D8E',
+          dark: '#5C226B',
+          light: '#9B4DAE',
+          50: '#F5EAF7',
         },
-        success: '#047857',
-        warning: '#B45309',
-        danger: '#B91C1C',
+        
+        /* Brand Colors */
+        brand: {
+          purple: '#7B2D8E',
+          cyan: '#0F9ED5',
+          'lime': '#C4D600',
+          'soft-green': '#4EA72E',
+          gray: '#4A4A4A'
+        },
+
+        /* Semantic colors matched to brand */
+        success: '#4EA72E',
+        warning: '#F5A623',
+        danger: '#D0021B',
       },
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Menlo', 'monospace'],
       },
       boxShadow: {
-        card: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.12)',
-        'card-lg': '0 2px 4px rgba(15,23,42,0.06), 0 16px 40px -12px rgba(15,23,42,0.18)',
+        card: '0 2px 4px rgba(74, 74, 74, 0.04), 0 8px 16px -4px rgba(74, 74, 74, 0.08)',
+        'card-lg': '0 4px 8px rgba(74, 74, 74, 0.06), 0 16px 32px -4px rgba(74, 74, 74, 0.12)',
       },
       keyframes: {
         'fade-in': {
@@ -41,12 +58,16 @@ module.exports = {
         },
         'pulse-success': {
           '0%, 100%': { backgroundColor: 'transparent' },
-          '50%': { backgroundColor: 'rgba(4,120,87,0.08)' },
+          '50%': { backgroundColor: 'rgba(78, 167, 46, 0.1)' },
         },
       },
       animation: {
-        'fade-in': 'fade-in 180ms ease-out both',
+        'fade-in': 'fade-in 200ms ease-out both',
         'pulse-success': 'pulse-success 600ms ease-in-out',
+      },
+      borderRadius: {
+        '2xl': '1rem',
+        '3xl': '1.25rem',
       },
     },
   },

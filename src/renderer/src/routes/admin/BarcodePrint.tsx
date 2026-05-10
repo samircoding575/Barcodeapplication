@@ -19,6 +19,7 @@ export function BarcodePrint(): JSX.Element {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (activeSession && !viewSessionId) setViewSessionId(activeSession.id)
@@ -66,7 +67,10 @@ export function BarcodePrint(): JSX.Element {
               <select
                 className="input-base py-2 text-sm max-w-[220px]"
                 value={viewSessionId}
-                onChange={(e) => setViewSessionId(e.target.value)}
+                onChange={(e) => {
+                  setViewSessionId(e.target.value)
+                  setSelectedIds(new Set())
+                }}
               >
                 <option value="">— Select session —</option>
                 {sessions.map((s) => (
@@ -76,9 +80,16 @@ export function BarcodePrint(): JSX.Element {
                 ))}
               </select>
               {barcodes.length > 0 && (
-                <Button onClick={() => window.print()}>
-                  Print (Ctrl+P)
-                </Button>
+                <div className="flex items-center gap-3">
+                  {selectedIds.size > 0 && (
+                    <Button variant="secondary" onClick={() => setSelectedIds(new Set())}>
+                      Clear ({selectedIds.size})
+                    </Button>
+                  )}
+                  <Button onClick={() => window.print()}>
+                    {selectedIds.size > 0 ? `Print ${selectedIds.size} Selected` : 'Print All (Ctrl+P)'}
+                  </Button>
+                </div>
               )}
             </div>
           }
@@ -115,7 +126,7 @@ export function BarcodePrint(): JSX.Element {
                     key={f}
                     onClick={() => setFilterStatus(f)}
                     className={`px-3 py-2 text-xs font-semibold capitalize transition-colors duration-150 ${
-                      filterStatus === f ? 'bg-navy text-white' : 'bg-paper text-slate hover:bg-surface'
+                      filterStatus === f ? 'bg-brand-purple text-white shadow-sm' : 'bg-paper text-slate hover:bg-surface'
                     }`}
                   >
                     {f}
@@ -127,14 +138,97 @@ export function BarcodePrint(): JSX.Element {
               )}
             </div>
 
-            {/* Barcode grid */}
+            {/* Barcode table */}
             {filtered.length === 0 ? (
               <EmptyState title="No matches" description="Try adjusting your search or filter." />
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filtered.map((entry) => (
-                  <BarcodeCard key={entry.id} entry={entry} />
-                ))}
+              <div className="bg-paper border border-divider rounded-xl shadow-sm overflow-hidden mt-2">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="bg-surface border-b border-divider">
+                        <th className="px-4 py-3 text-center w-12">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate/30 text-brand-purple focus:ring-brand-purple w-4 h-4"
+                            checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedIds(new Set(filtered.map(b => b.id)))
+                              } else {
+                                setSelectedIds(new Set())
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-xs font-semibold text-slate uppercase tracking-wider w-1/4">Student Name</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-slate uppercase tracking-wider w-1/6">Student ID</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-slate uppercase tracking-wider w-1/4">Barcode Image</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-slate uppercase tracking-wider w-1/6">Token ID</th>
+                        <th className="px-4 py-3 text-xs font-semibold text-slate uppercase tracking-wider text-right w-1/6">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((entry, i) => (
+                        <tr
+                          key={entry.id}
+                          onClick={() => {
+                            const next = new Set(selectedIds)
+                            if (next.has(entry.id)) next.delete(entry.id)
+                            else next.add(entry.id)
+                            setSelectedIds(next)
+                          }}
+                          className={`cursor-pointer border-b border-divider/60 transition-colors duration-150 hover:bg-surface/50 ${
+                            i % 2 === 0 ? 'bg-paper' : 'bg-surface/30'
+                          } ${selectedIds.has(entry.id) ? 'bg-brand-purple/5' : ''}`}
+                        >
+                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox"
+                              className="rounded border-slate/30 text-brand-purple focus:ring-brand-purple w-4 h-4 cursor-pointer"
+                              checked={selectedIds.has(entry.id)}
+                              onChange={(e) => {
+                                const next = new Set(selectedIds)
+                                if (e.target.checked) next.add(entry.id)
+                                else next.delete(entry.id)
+                                setSelectedIds(next)
+                              }}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-ink text-sm truncate">{entry.student.name}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-mono text-xs text-slate">{entry.student.externalId}</p>
+                          </td>
+                          <td className="px-4 py-2 align-middle">
+                            <div className="inline-flex items-center justify-center bg-white px-1.5 py-0.5 rounded shadow-sm border border-divider">
+                              <Barcode
+                                value={entry.token}
+                                format="CODE128"
+                                displayValue={false}
+                                height={24}
+                                width={0.6}
+                                margin={0}
+                                background="transparent"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-mono text-xs text-slate tracking-wider">
+                              ••••{entry.token.slice(-12)}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Badge variant={entry.graded ? 'success' : 'neutral'}>
+                              {entry.graded ? (entry.gradeValue !== null ? formatGrade(entry.gradeValue) : 'Graded') : 'Pending'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </>
@@ -142,10 +236,10 @@ export function BarcodePrint(): JSX.Element {
       </div>
 
       {/* ── Printable area — only renders during Ctrl+P ─────────────────────── */}
-      <div id="barcode-print-area">
+      <div id="barcode-print-area" className="hidden print:block">
         <div className="print-header hidden">
-          <div style={{ textAlign: 'center', marginBottom: '8mm', borderBottom: '1px solid #0B1E3F', paddingBottom: '4mm' }}>
-            <strong style={{ fontSize: '13pt', color: '#0B1E3F' }}>
+          <div style={{ textAlign: 'center', marginBottom: '8mm', borderBottom: '1px solid #0E2841', paddingBottom: '4mm' }}>
+            <strong style={{ fontSize: '13pt', color: '#0E2841' }}>
               Lebanese Bar Association — {sessionLabel}
             </strong>
             <br />
@@ -153,58 +247,22 @@ export function BarcodePrint(): JSX.Element {
             <span style={{ fontSize: '8pt', color: '#999', marginLeft: '8mm' }}>
               Printed: {new Date().toLocaleDateString()}
             </span>
+            <div style={{ fontSize: '9pt', color: '#ef4444', marginTop: '3mm', fontWeight: 'bold' }}>
+              IMPORTANT: Ensure print scale is set to "100%" or "Actual Size" in your printer dialog.
+            </div>
           </div>
         </div>
         <div id="barcode-print-grid">
-          {barcodes.map((entry) => (
+          {(selectedIds.size > 0 ? barcodes.filter(b => selectedIds.has(b.id)) : barcodes).map((entry) => (
             <div key={`p-${entry.id}`} className="barcode-card">
               <Barcode value={entry.token} format="CODE128" displayValue={false} height={60} width={1.5} margin={4} />
               <div className="barcode-card-label">
-                <p>{entry.student.externalId}</p>
+                <p style={{ fontWeight: 'bold', marginBottom: '1mm' }}>{entry.student.externalId}</p>
                 <p>{entry.student.name}</p>
               </div>
             </div>
           ))}
         </div>
-      </div>
-    </div>
-  )
-}
-
-function BarcodeCard({ entry }: { entry: AdminBarcode }): JSX.Element {
-  return (
-    <div className={`bg-paper border rounded-2xl overflow-hidden shadow-card transition-all duration-150 hover:shadow-card-lg ${entry.graded ? 'border-success/30' : 'border-divider'}`}>
-      {/* Card header */}
-      <div className={`px-4 pt-4 pb-2 ${entry.graded ? 'bg-emerald-50/50' : 'bg-surface'}`}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold text-ink text-sm leading-tight truncate">{entry.student.name}</p>
-            <p className="font-mono text-xs text-slate mt-0.5">{entry.student.externalId}</p>
-          </div>
-          <Badge variant={entry.graded ? 'success' : 'neutral'} className="shrink-0 mt-0.5">
-            {entry.graded ? (entry.gradeValue !== null ? formatGrade(entry.gradeValue) : 'Graded') : 'Pending'}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Barcode */}
-      <div className="flex justify-center px-4 py-3 bg-paper">
-        <Barcode
-          value={entry.token}
-          format="CODE128"
-          displayValue={false}
-          height={50}
-          width={1.4}
-          margin={0}
-          background="transparent"
-        />
-      </div>
-
-      {/* Token footer */}
-      <div className="px-4 pb-3">
-        <p className="font-mono text-xs text-slate/50 text-center tracking-wider truncate">
-          ••••{entry.token.slice(-12)}
-        </p>
       </div>
     </div>
   )

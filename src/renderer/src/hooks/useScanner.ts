@@ -4,7 +4,7 @@ const SCANNER_MAX_CHAR_DELAY_MS = 50
 const SCANNER_MIN_TOKEN_LENGTH = 8
 
 /**
- * Detects USB QR scanner input (high-velocity keystrokes terminated by Enter)
+ * Detects USB barcode scanner input (high-velocity keystrokes terminated by Enter)
  * and calls onScan with the accumulated token. Ignores input when focus is on
  * a form field — those handle scanner input directly via their onChange/onKeyDown.
  */

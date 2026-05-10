@@ -5,15 +5,15 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-navy text-white hover:bg-navy-dark disabled:opacity-40',
-  secondary: 'bg-paper text-ink border border-divider hover:bg-surface disabled:opacity-40',
-  ghost: 'bg-transparent text-slate hover:text-ink hover:bg-surface disabled:opacity-40',
-  danger: 'bg-danger text-white hover:bg-red-800 disabled:opacity-40',
+  primary: 'bg-brand-purple text-white hover:bg-accent-dark shadow-sm disabled:opacity-40',
+  secondary: 'bg-paper text-ink border border-divider hover:bg-surface hover:border-brand-cyan/50 disabled:opacity-40',
+  ghost: 'bg-transparent text-slate hover:text-brand-purple hover:bg-accent-50 disabled:opacity-40',
+  danger: 'bg-danger text-white hover:bg-red-800 shadow-sm disabled:opacity-40',
 }
 
 const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'px-3 py-1.5 text-xs font-medium rounded-lg',
-  md: 'px-4 py-2.5 text-sm font-semibold rounded-xl',
+  sm: 'px-3 py-1.5 text-xs font-semibold rounded-md',
+  md: 'px-5 py-2.5 text-sm font-semibold rounded-lg',
 }
 
 export function Button({
@@ -28,7 +28,7 @@ export function Button({
   return (
     <button
       disabled={disabled || loading}
-      className={`inline-flex items-center gap-2 transition-colors duration-150 ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 transition-colors duration-150 ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {loading && (

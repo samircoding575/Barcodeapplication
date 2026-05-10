@@ -75,7 +75,7 @@ export function EmployeeLoginForm(): JSX.Element {
       </div>
 
       {mode === 'signup' && (
-        <div>
+        <div className="animate-fade-in">
           <label className="block text-xs font-semibold text-slate uppercase tracking-wide mb-1.5">Confirm Password</label>
           <input
             type="password"
@@ -89,7 +89,7 @@ export function EmployeeLoginForm(): JSX.Element {
       )}
 
       {error && (
-        <p className="text-danger text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 animate-fade-in">
+        <p className="text-danger text-sm bg-red-50 border border-red-200 rounded-md px-4 py-2.5 animate-fade-in">
           {error}
         </p>
       )}
@@ -102,7 +102,7 @@ export function EmployeeLoginForm(): JSX.Element {
         <button
           type="button"
           onClick={(e) => switchMode(e, mode === 'signin' ? 'signup' : 'signin')}
-          className="text-sm text-slate hover:text-navy font-medium transition-colors"
+          className="text-sm text-slate hover:text-brand-purple font-semibold transition-colors duration-150"
         >
           {mode === 'signin' ? 'Create new account' : 'Back to sign in'}
         </button>

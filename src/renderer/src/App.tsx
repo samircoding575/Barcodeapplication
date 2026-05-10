@@ -6,8 +6,12 @@ import { LoginPage } from './routes/auth/LoginPage'
 import { Students } from './routes/admin/Students'
 import { BarcodePrint } from './routes/admin/BarcodePrint'
 import { Reports } from './routes/admin/Reports'
+import { Dashboard } from './routes/admin/Dashboard'
 import { Grade } from './routes/teacher/Grade'
 import { Import } from './routes/teacher/Import'
+import { History } from './routes/teacher/History'
+import { Sessions } from './routes/admin/Sessions'
+import { Settings } from './routes/admin/Settings'
 
 function PreloadError(): JSX.Element {
   return (
@@ -36,10 +40,13 @@ function AdminShell(): JSX.Element {
       <TopBar role="admin" />
       <AnimatedMain>
         <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/candidates" element={<Students />} />
           <Route path="/barcodes" element={<BarcodePrint />} />
           <Route path="/results" element={<Reports />} />
-          <Route path="*" element={<Navigate to="/candidates" replace />} />
+          <Route path="/sessions" element={<Sessions />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AnimatedMain>
     </div>
@@ -54,6 +61,7 @@ function ExaminerShell(): JSX.Element {
         <Routes>
           <Route path="/grade" element={<Grade />} />
           <Route path="/import" element={<Import />} />
+          <Route path="/history" element={<History />} />
           <Route path="*" element={<Navigate to="/grade" replace />} />
         </Routes>
       </AnimatedMain>

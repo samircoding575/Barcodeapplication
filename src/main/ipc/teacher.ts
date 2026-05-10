@@ -6,7 +6,7 @@ import { previewImport, commitImport } from '../services/import'
 import { getActiveSession } from '../services/session'
 import { getCurrentUserId } from '../auth-state'
 import { TeacherChannels, LookupTokenResponseSchema, ImportPreviewSchema, TeacherProgressItemSchema } from '../../shared/ipc'
-import { MIN_GRADE_HUNDREDTHS, MAX_GRADE_HUNDREDTHS } from '../../shared/types'
+import { MIN_GRADE_HUNDREDTHS } from '../../shared/types'
 import type { ValidatedRow, RowStatus } from '../../shared/types'
 
 export function registerTeacherHandlers(): void {
@@ -32,10 +32,14 @@ export function registerTeacherHandlers(): void {
   ipcMain.handle(TeacherChannels.SAVE_GRADE, async (_, data: { token: string; value: number }) => {
     try {
       const db = getDb()
-      const barcode = await db.barcode.findUnique({ where: { token: data.token } })
+      const barcode = await db.barcode.findUnique({
+        where: { token: data.token },
+        include: { session: true },
+      })
       if (!barcode) return { success: false, error: 'Token not found' }
-      if (data.value < MIN_GRADE_HUNDREDTHS || data.value > MAX_GRADE_HUNDREDTHS) {
-        return { success: false, error: `Grade out of range [0..20]` }
+      const maxGrade = barcode.session.maxGrade
+      if (data.value < MIN_GRADE_HUNDREDTHS || data.value > maxGrade) {
+        return { success: false, error: `Grade out of range [0..${(maxGrade / 100).toFixed(2)}]` }
       }
       const gradedById = getCurrentUserId()
       await db.grade.upsert({

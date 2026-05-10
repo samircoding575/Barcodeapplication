@@ -19,13 +19,23 @@ model User {
 }
 
 model ExamSession {
-  id        String    @id @default(cuid())
-  title     String
-  year      Int
-  semester  String?
-  isActive  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  barcodes  Barcode[]
+  id           String    @id @default(cuid())
+  title        String
+  year         Int
+  semester     String?
+  maxGrade     Int       @default(2000)
+  step         String    @default("0.25")
+  passingGrade Int       @default(1000)
+  maxPassCount Int?
+  isActive     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  barcodes     Barcode[]
+}
+
+model AppConfig {
+  id           String  @id @default("singleton")
+  orgName      String  @default("Lebanese Bar Association")
+  orgNameAr    String  @default("نقابة المحامين في بيروت")
 }
 
 model Student {

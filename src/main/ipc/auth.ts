@@ -46,7 +46,12 @@ export function registerAuthHandlers(): void {
   })
 
   ipcMain.handle(AuthChannels.LOGOUT, async () => {
-    setCurrentUserId(null)
-    return { success: true }
+    try {
+      setCurrentUserId(null)
+      return { success: true }
+    } catch (err) {
+      console.error('[auth/logout]', err)
+      return { success: false, error: (err as Error).message }
+    }
   })
 }

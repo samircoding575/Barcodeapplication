@@ -2,8 +2,9 @@ import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { readFileSync } from 'fs'
 import { getDb } from '../db'
-import { parseGradeInput, MIN_GRADE_HUNDREDTHS, MAX_GRADE_HUNDREDTHS } from '../../shared/types'
+import { parseGradeInput, MIN_GRADE_HUNDREDTHS, FALLBACK_MAX_GRADE_HUNDREDTHS } from '../../shared/types'
 import type { ValidatedRow, RowStatus, ImportPreview } from '../../shared/types'
+import { getActiveSession } from './session'
 
 interface RawRow {
   token: string
@@ -26,6 +27,8 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
   const db = getDb()
   const seenTokens = new Map<string, number>()
   const rows: ValidatedRow[] = []
+  const session = await getActiveSession()
+  const MAX_GRADE = session ? session.maxGrade : FALLBACK_MAX_GRADE_HUNDREDTHS
 
   for (let i = 0; i < raw.length; i++) {
     const r = raw[i]
@@ -47,7 +50,7 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
     if (
       isNaN(proposedValue) ||
       proposedValue < MIN_GRADE_HUNDREDTHS ||
-      proposedValue > MAX_GRADE_HUNDREDTHS
+      proposedValue > MAX_GRADE
     ) {
       rows.push({
         token,
@@ -55,7 +58,7 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
         proposedValue: isNaN(proposedValue) ? 0 : proposedValue,
         message: isNaN(proposedValue)
           ? `Not a number: "${gradeStr}"`
-          : `Out of range [${MIN_GRADE_HUNDREDTHS / 100}..${MAX_GRADE_HUNDREDTHS / 100}]`,
+          : `Out of range [${MIN_GRADE_HUNDREDTHS / 100}..${MAX_GRADE / 100}]`,
       })
       continue
     }

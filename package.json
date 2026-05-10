@@ -1,7 +1,7 @@
 {
   "name": "qrecs",
   "version": "0.1.0",
-  "description": "QR-Based Exam Correction System",
+  "description": "Barcode-Based Exam Correction System",
   "main": "out/main/index.js",
   "scripts": {
     "predev": "prisma db push",

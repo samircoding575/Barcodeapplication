@@ -1,6 +1,6 @@
 /* Enforce strong focus rings — critical for Zero-Mouse teacher workflow */
 :focus-visible {
-  outline: 3px solid #B8935A;
+  outline: 3px solid #7B2D8E;
   outline-offset: 2px;
   border-radius: 4px;
 }

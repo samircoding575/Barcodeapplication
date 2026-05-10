@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GradeResult } from '@shared/types'
-import { formatGrade, MIN_GRADE_HUNDREDTHS, MAX_GRADE_HUNDREDTHS } from '@shared/types'
+import { formatGrade, MIN_GRADE_HUNDREDTHS } from '@shared/types'
 import { useAppStore } from '../../store/appStore'
 import Papa from 'papaparse'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -15,6 +15,7 @@ export function Reports(): JSX.Element {
   const [results, setResults] = useState<GradeResult[]>([])
   const [totalCandidates, setTotalCandidates] = useState(0)
   const [exporting, setExporting] = useState(false)
+  const [exportingAll, setExportingAll] = useState(false)
 
   useEffect(() => {
     if (activeSession && !viewSessionId) setViewSessionId(activeSession.id)
@@ -53,6 +54,30 @@ export function Reports(): JSX.Element {
     }
   }
 
+  async function handleExportAll(): Promise<void> {
+    if (sessions.length === 0) return
+    setExportingAll(true)
+    try {
+      let allRows: { session: string; external_id: string; name: string; grade: string }[] = []
+      for (const s of sessions) {
+        const sessionResults = await window.api.admin.getResults({ sessionId: s.id })
+        const label = [s.title, s.year, s.semester].filter(Boolean).join(' · ')
+        sessionResults.forEach((r) => {
+          allRows.push({
+            session: label,
+            external_id: r.barcode.student.externalId,
+            name: r.barcode.student.name,
+            grade: formatGrade(r.value),
+          })
+        })
+      }
+      const csv = Papa.unparse(allRows)
+      await window.api.file.saveCsv({ content: csv, defaultName: 'all-sessions-master-results.csv' })
+    } finally {
+      setExportingAll(false)
+    }
+  }
+
   const avg = results.length > 0 ? results.reduce((a, b) => a + b.value, 0) / results.length : null
   const viewingSession = sessions.find((s) => s.id === viewSessionId)
 
@@ -73,6 +98,9 @@ export function Reports(): JSX.Element {
             {results.length > 0 && (
               <Button onClick={handleExport} loading={exporting}>Export CSV</Button>
             )}
+            <Button variant="secondary" onClick={handleExportAll} loading={exportingAll} disabled={sessions.length === 0}>
+              Export All Sessions
+            </Button>
           </div>
         }
       />
@@ -85,7 +113,7 @@ export function Reports(): JSX.Element {
             <StatCard value={totalCandidates} label="Total Candidates" />
             <StatCard value={results.length} label="Graded" accent />
             <StatCard value={avg !== null ? formatGrade(avg) : '—'} label="Average Grade" accent={avg !== null} />
-            <StatCard value={`${formatGrade(MIN_GRADE_HUNDREDTHS)} – ${formatGrade(MAX_GRADE_HUNDREDTHS)}`} label="Grade Range" />
+            <StatCard value={`${formatGrade(MIN_GRADE_HUNDREDTHS)} – ${formatGrade(viewingSession?.maxGrade ?? 2000)}`} label="Grade Range" />
           </div>
 
           {results.length === 0 ? (
@@ -103,10 +131,10 @@ export function Reports(): JSX.Element {
                 </thead>
                 <tbody>
                   {results.map((r, i) => (
-                    <tr key={r.id} className={`border-b border-divider/60 ${i % 2 === 0 ? 'bg-paper hover:bg-surface' : 'bg-surface/60 hover:bg-surface'} transition-colors duration-100`}>
+                    <tr key={r.id} className={`border-b border-divider/60 ${i % 2 === 0 ? 'bg-paper hover:bg-surface' : 'bg-surface/60 hover:bg-surface'} transition-all duration-150`}>
                       <td className="px-4 py-3 font-mono text-xs text-slate">{r.barcode.student.externalId}</td>
                       <td className="px-4 py-3 font-medium text-ink">{r.barcode.student.name}</td>
-                      <td className="px-4 py-3 text-right font-display font-semibold text-navy text-base">{formatGrade(r.value)}</td>
+                      <td className="px-4 py-3 text-right font-display font-bold text-brand-purple text-base">{formatGrade(r.value)}</td>
                       <td className="px-4 py-3 text-xs text-slate">{new Date(r.gradedAt).toLocaleString()}</td>
                     </tr>
                   ))}

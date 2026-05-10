@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import type { TeacherProgressItem } from '@shared/types'
-import { formatGrade, parseGradeInput, MIN_GRADE_HUNDREDTHS, MAX_GRADE_HUNDREDTHS } from '@shared/types'
+import { formatGrade, parseGradeInput, MIN_GRADE_HUNDREDTHS } from '@shared/types'
 import { useAppStore } from '../../store/appStore'
 import { StatusDot } from '../../components/ui/StatusDot'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -27,10 +27,10 @@ export function Grade(): JSX.Element {
     )
   }
 
-  return <GradePanel />
+  return <GradePanel sessionMaxGrade={activeSession.maxGrade} sessionStep={activeSession.step} />
 }
 
-function GradePanel(): JSX.Element {
+function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number; sessionStep: string }): JSX.Element {
   // Progress list state
   const [progress, setProgress] = useState<TeacherProgressItem[]>([])
   const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>('all')
@@ -42,7 +42,6 @@ function GradePanel(): JSX.Element {
   const [gradeInput, setGradeInput] = useState('')
   const [tokenState, setTokenState] = useState<TokenState | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [decimalMode, setDecimalMode] = useState(false)
 
   const scanRef = useRef<HTMLInputElement>(null)
   const gradeRef = useRef<HTMLInputElement>(null)
@@ -123,13 +122,11 @@ function GradePanel(): JSX.Element {
   function handleScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
     if (e.key === 'Enter') { e.preventDefault(); lookupToken(token) }
     if (e.key === 'Escape') reset()
-    if (e.key === 'F2') setDecimalMode((m) => !m)
   }
 
   function handleGradeKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
     if (e.key === 'Enter') { e.preventDefault(); handleSubmit() }
     if (e.key === 'Escape') reset()
-    if (e.key === 'F2') setDecimalMode((m) => !m)
   }
 
   async function handleUndo(): Promise<void> {
@@ -165,18 +162,18 @@ function GradePanel(): JSX.Element {
       {/* Sidebar */}
       <div className="w-72 shrink-0 border-r border-divider bg-paper flex flex-col">
         {/* Progress header */}
-        <div className="px-4 py-4 border-b border-divider">
+        <div className="px-4 py-4 border-b border-divider bg-surface">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-slate uppercase tracking-wide">Progress</span>
-            <span className="text-xs font-mono text-ink">{gradedCount} / {progress.length}</span>
+            <span className="text-xs font-mono text-ink font-bold">{gradedCount} / {progress.length}</span>
           </div>
-          <div className="h-1.5 bg-divider rounded-full overflow-hidden">
+          <div className="h-2 bg-divider rounded-full overflow-hidden">
             <div
-              className="h-full bg-gold rounded-full transition-all duration-500"
+              className="h-full bg-brand-lime transition-all duration-300 ease-out"
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <p className="text-xs text-slate mt-1">{progressPct}% complete</p>
+          <p className="text-xs text-slate mt-1.5">{progressPct}% complete</p>
         </div>
 
         {/* Filter chips */}
@@ -185,8 +182,8 @@ function GradePanel(): JSX.Element {
             <button
               key={f}
               onClick={() => { setSidebarFilter(f); setSidebarSelected(0) }}
-              className={`flex-1 py-1 text-xs font-semibold rounded-lg transition-colors duration-150 ${
-                sidebarFilter === f ? 'bg-navy text-white' : 'bg-surface text-slate hover:bg-divider'
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 ${
+                sidebarFilter === f ? 'bg-navy text-white shadow-sm' : 'bg-surface text-slate hover:bg-divider'
               }`}
               title={`${i + 1} key`}
             >
@@ -217,13 +214,13 @@ function GradePanel(): JSX.Element {
                     isPulsed ? 'animate-pulse-success' : ''
                   } ${
                     isActive
-                      ? 'bg-navy/8 border-l-2 border-gold'
+                      ? 'bg-accent-50 border-l-2 border-brand-purple'
                       : 'hover:bg-surface border-l-2 border-transparent'
                   }`}
                 >
                   <StatusDot status={item.graded ? 'graded' : 'pending'} />
-                  <span className="font-mono text-xs text-ink">{masked}</span>
-                  <span className={`ml-auto text-xs ${item.graded ? 'text-success' : 'text-slate/50'}`}>
+                  <span className={`font-mono text-xs ${isActive ? 'text-brand-purple font-semibold' : 'text-ink'}`}>{masked}</span>
+                  <span className={`ml-auto text-xs font-medium ${item.graded ? 'text-brand-soft-green' : 'text-slate/50'}`}>
                     {item.graded ? 'graded' : ''}
                   </span>
                 </button>
@@ -239,9 +236,9 @@ function GradePanel(): JSX.Element {
           <div className="bg-paper rounded-2xl shadow-card border border-divider overflow-hidden">
             {/* Header */}
             <div className="bg-navy px-6 py-4">
-              <h2 className="text-white font-display font-semibold text-lg">Grade Entry</h2>
-              <p className="text-white/50 text-xs mt-0.5">
-                {decimalMode ? 'Decimal mode' : 'Integer mode'} · F2 to toggle
+              <h2 className="text-white font-display font-bold text-lg">Grade Entry</h2>
+              <p className="text-white/50 text-xs mt-0.5 font-medium">
+                Step: {sessionStep}
               </p>
             </div>
 
@@ -265,7 +262,7 @@ function GradePanel(): JSX.Element {
                   tabIndex={1}
                 />
                 {tokenState && (
-                  <p className={`text-xs mt-1.5 font-medium ${tokenState.valid ? 'text-success' : 'text-danger'}`}>
+                  <p className={`text-xs mt-1.5 font-semibold ${tokenState.valid ? 'text-brand-soft-green' : 'text-danger'}`}>
                     {tokenState.valid
                       ? tokenState.alreadyGraded
                         ? `⚠ Already graded (${formatGrade(tokenState.currentGrade ?? 0)}) — will overwrite`
@@ -279,19 +276,19 @@ function GradePanel(): JSX.Element {
               {tokenState?.valid && (
                 <div className="mb-5 animate-fade-in">
                   <label className="block text-xs font-semibold text-slate uppercase tracking-wide mb-1.5">
-                    Grade <span className="normal-case font-normal text-slate/60">({formatGrade(MIN_GRADE_HUNDREDTHS)} – {formatGrade(MAX_GRADE_HUNDREDTHS)})</span>
+                    Grade <span className="normal-case font-normal text-slate/60">({formatGrade(MIN_GRADE_HUNDREDTHS)} – {formatGrade(sessionMaxGrade)})</span>
                   </label>
                   <input
                     ref={gradeRef}
                     type="number"
-                    className="w-full border border-divider rounded-xl px-4 py-3 text-4xl font-display font-semibold text-center text-navy focus:ring-2 focus:ring-gold/50 focus:border-gold outline-none transition-colors duration-150"
+                    className="w-full border border-divider rounded-xl px-4 py-3 text-4xl font-display font-bold text-center text-ink focus:ring-2 focus:ring-brand-purple/30 focus:border-brand-purple outline-none transition-all duration-150"
                     value={gradeInput}
                     onChange={(e) => setGradeInput(e.target.value)}
                     onKeyDown={handleGradeKeyDown}
                     min={MIN_GRADE_HUNDREDTHS / 100}
-                    max={MAX_GRADE_HUNDREDTHS / 100}
-                    step={decimalMode ? 0.25 : 1}
-                    placeholder={decimalMode ? '0.00' : '0'}
+                    max={sessionMaxGrade / 100}
+                    step={Number(sessionStep)}
+                    placeholder={sessionStep === '1' ? '0' : '0.00'}
                     tabIndex={2}
                   />
                 </div>
@@ -301,14 +298,14 @@ function GradePanel(): JSX.Element {
                 <button
                   onClick={handleSubmit}
                   disabled={!token || !tokenState?.valid || !gradeInput}
-                  className="flex-1 py-3 bg-navy text-white rounded-xl font-semibold text-sm hover:bg-navy-dark disabled:opacity-40 transition-colors duration-150"
+                  className="flex-1 py-3 bg-brand-purple text-white rounded-lg font-semibold text-sm hover:bg-accent-dark shadow-sm disabled:opacity-40 transition-colors duration-150"
                   tabIndex={3}
                 >
                   Submit (Enter)
                 </button>
                 <button
                   onClick={handleUndo}
-                  className="px-4 py-3 bg-surface text-slate rounded-xl hover:bg-divider transition-colors duration-150 text-sm border border-divider"
+                  className="px-4 py-3 bg-surface text-slate rounded-lg hover:bg-divider hover:text-ink transition-colors duration-150 text-sm border border-divider"
                   title="Undo last grade"
                   tabIndex={4}
                 >
@@ -318,9 +315,9 @@ function GradePanel(): JSX.Element {
 
               {feedback && (
                 <div
-                  className={`mt-4 p-3 rounded-xl text-sm text-center font-medium animate-fade-in ${
+                  className={`mt-4 p-3 rounded-lg text-sm text-center font-semibold animate-fade-in ${
                     feedback.type === 'success'
-                      ? 'bg-emerald-50 text-success border border-emerald-200'
+                      ? 'bg-emerald-50 text-brand-soft-green border border-emerald-200'
                       : 'bg-red-50 text-danger border border-red-200'
                   }`}
                   aria-live="polite"
@@ -333,8 +330,8 @@ function GradePanel(): JSX.Element {
                 <p className="text-center text-xs text-slate/40 mt-3 font-mono">{maskedScan}</p>
               )}
 
-              <p className="text-center text-xs text-slate/40 mt-2">
-                ESC reset · F2 decimal · 1/2/3 filter sidebar · ↑↓ navigate list
+              <p className="text-center text-xs text-slate/40 mt-3">
+                ESC reset · 1/2/3 filter sidebar · ↑↓ navigate list
               </p>
             </div>
           </div>
