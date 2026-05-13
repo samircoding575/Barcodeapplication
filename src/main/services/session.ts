@@ -1,22 +1,27 @@
 import { getDb } from '../db'
 
 export async function listSessions() {
-  return getDb().examSession.findMany({ orderBy: [{ year: 'desc' }, { createdAt: 'desc' }] })
+  return getDb().examSession.findMany({
+    orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
+    include: { exams: { orderBy: { order: 'asc' } } },
+  })
 }
 
 export async function getActiveSession() {
-  return getDb().examSession.findFirst({ where: { isActive: true } })
+  return getDb().examSession.findFirst({
+    where: { isActive: true },
+    include: { exams: { orderBy: { order: 'asc' } } },
+  })
 }
 
-export async function createSession(data: { title: string; year: number; semester?: string | null; maxGrade?: number; step?: string; passingGrade?: number; maxPassCount?: number | null }) {
+export async function createSession(data: { title: string; year: number; semester?: string | null }) {
   return getDb().examSession.create({
     data: {
-      ...data,
-      maxGrade: data.maxGrade ?? 2000,
-      step: data.step ?? '0.25',
-      passingGrade: data.passingGrade ?? 1000,
-      maxPassCount: data.maxPassCount ?? null,
+      title: data.title,
+      year: data.year,
+      semester: data.semester ?? null,
     },
+    include: { exams: true },
   })
 }
 

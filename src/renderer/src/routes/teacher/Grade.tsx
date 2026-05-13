@@ -11,7 +11,7 @@ interface TokenState {
   currentGrade?: number | null
 }
 
-type SidebarFilter = 'all' | 'pending' | 'graded'
+type SidebarFilter = 'all' | 'pending' | 'graded' | 'modified'
 
 export function Grade(): JSX.Element {
   const activeSession = useAppStore((s) => s.activeSession)
@@ -60,6 +60,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
   const filtered = useMemo(() => {
     if (sidebarFilter === 'graded') return progress.filter((p) => p.graded)
     if (sidebarFilter === 'pending') return progress.filter((p) => !p.graded)
+    if (sidebarFilter === 'modified') return progress.filter((p) => p.isModified)
     return progress
   }, [progress, sidebarFilter])
 
@@ -72,9 +73,10 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
 
-      if (e.key === '1') { setSidebarFilter('all'); setSidebarSelected(0) }
-      else if (e.key === '2') { setSidebarFilter('pending'); setSidebarSelected(0) }
-      else if (e.key === '3') { setSidebarFilter('graded'); setSidebarSelected(0) }
+      if (e.key === '1' && e.altKey) { e.preventDefault(); setSidebarFilter('all'); setSidebarSelected(0) }
+      else if (e.key === '2' && e.altKey) { e.preventDefault(); setSidebarFilter('pending'); setSidebarSelected(0) }
+      else if (e.key === '3' && e.altKey) { e.preventDefault(); setSidebarFilter('graded'); setSidebarSelected(0) }
+      else if (e.key === '4' && e.altKey) { e.preventDefault(); setSidebarFilter('modified'); setSidebarSelected(0) }
       else if (e.key === 'ArrowDown') {
         e.preventDefault()
         setSidebarSelected((i) => Math.min(i + 1, filtered.length - 1))
@@ -84,6 +86,13 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
       } else if (e.key === 'Enter' && document.activeElement === sidebarRef.current) {
         const item = filtered[sidebarSelected]
         if (item) handleSelectToken(item.token)
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Auto-focus scanner and capture key if user scans while unfocused
+        e.preventDefault()
+        if (scanRef.current) {
+          scanRef.current.focus()
+          setToken((prev) => prev + e.key)
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -109,8 +118,15 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
       currentGrade: res.currentGrade,
     })
     if (res.valid) {
-      if (res.alreadyGraded && res.currentGrade != null) setGradeInput(formatGrade(res.currentGrade))
-      setTimeout(() => { gradeRef.current?.focus(); gradeRef.current?.select() }, 50)
+      if (res.alreadyGraded && res.currentGrade != null) {
+        setGradeInput(formatGrade(res.currentGrade))
+      }
+      if (!res.alreadyGraded) {
+        setTimeout(() => { gradeRef.current?.focus(); gradeRef.current?.select() }, 50)
+      }
+    } else {
+      setFeedback({ type: 'error', msg: `Barcode does not exist: ${t}` })
+      setTimeout(() => alert(`WARNING: The barcode "${t}" is not recognized by the system and does not exist.`), 50)
     }
   }
 
@@ -120,7 +136,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
   }
 
   function handleScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
-    if (e.key === 'Enter') { e.preventDefault(); lookupToken(token) }
+    if (e.key === 'Enter') { e.preventDefault(); lookupToken(e.currentTarget.value) }
     if (e.key === 'Escape') reset()
   }
 
@@ -129,13 +145,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
     if (e.key === 'Escape') reset()
   }
 
-  async function handleUndo(): Promise<void> {
-    const res = await window.api.teacher.undoLast()
-    if (res.success) {
-      setFeedback({ type: 'success', msg: `Undid grade for …${res.token?.slice(-6) ?? ''}` })
-      await loadProgress()
-    }
-  }
+
 
   async function handleSubmit(): Promise<void> {
     if (!token || !gradeInput || !tokenState?.valid) return
@@ -177,15 +187,15 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
         </div>
 
         {/* Filter chips */}
-        <div className="px-3 pt-3 pb-2 flex gap-1">
-          {(['all', 'pending', 'graded'] as SidebarFilter[]).map((f, i) => (
+        <div className="px-3 pt-3 pb-2 grid grid-cols-2 gap-1">
+          {(['all', 'pending', 'graded', 'modified'] as SidebarFilter[]).map((f, i) => (
             <button
               key={f}
               onClick={() => { setSidebarFilter(f); setSidebarSelected(0) }}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 ${
                 sidebarFilter === f ? 'bg-navy text-white shadow-sm' : 'bg-surface text-slate hover:bg-divider'
               }`}
-              title={`${i + 1} key`}
+              title={`Alt+${i + 1}`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
@@ -210,18 +220,27 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
                 <button
                   key={item.token}
                   onClick={() => { setSidebarSelected(i); handleSelectToken(item.token) }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-100 border-l-4 ${
                     isPulsed ? 'animate-pulse-success' : ''
                   } ${
                     isActive
-                      ? 'bg-accent-50 border-l-2 border-brand-purple'
-                      : 'hover:bg-surface border-l-2 border-transparent'
+                      ? 'bg-accent-50 border-brand-purple'
+                      : 'hover:bg-surface border-transparent'
                   }`}
                 >
                   <StatusDot status={item.graded ? 'graded' : 'pending'} />
-                  <span className={`font-mono text-xs ${isActive ? 'text-brand-purple font-semibold' : 'text-ink'}`}>{masked}</span>
-                  <span className={`ml-auto text-xs font-medium ${item.graded ? 'text-brand-soft-green' : 'text-slate/50'}`}>
-                    {item.graded ? 'graded' : ''}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-mono text-sm ${isActive ? 'text-brand-purple font-bold' : 'text-ink font-medium'}`}>{masked}</span>
+                      {item.isModified && (
+                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-warning/10 text-warning rounded-sm" title="Modified by Admin">
+                          Mod
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`shrink-0 text-[10px] uppercase font-bold tracking-wider ${item.graded ? 'text-success' : 'text-slate/40'}`}>
+                    {item.graded ? 'Graded' : 'Pending'}
                   </span>
                 </button>
               )
@@ -265,7 +284,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
                   <p className={`text-xs mt-1.5 font-semibold ${tokenState.valid ? 'text-brand-soft-green' : 'text-danger'}`}>
                     {tokenState.valid
                       ? tokenState.alreadyGraded
-                        ? `⚠ Already graded (${formatGrade(tokenState.currentGrade ?? 0)}) — will overwrite`
+                        ? `✓ Already graded (${formatGrade(tokenState.currentGrade ?? 0)}) — read-only`
                         : '✓ Valid token'
                       : '✗ Token not found'}
                   </p>
@@ -278,38 +297,36 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
                   <label className="block text-xs font-semibold text-slate uppercase tracking-wide mb-1.5">
                     Grade <span className="normal-case font-normal text-slate/60">({formatGrade(MIN_GRADE_HUNDREDTHS)} – {formatGrade(sessionMaxGrade)})</span>
                   </label>
-                  <input
-                    ref={gradeRef}
-                    type="number"
-                    className="w-full border border-divider rounded-xl px-4 py-3 text-4xl font-display font-bold text-center text-ink focus:ring-2 focus:ring-brand-purple/30 focus:border-brand-purple outline-none transition-all duration-150"
-                    value={gradeInput}
-                    onChange={(e) => setGradeInput(e.target.value)}
-                    onKeyDown={handleGradeKeyDown}
-                    min={MIN_GRADE_HUNDREDTHS / 100}
-                    max={sessionMaxGrade / 100}
-                    step={Number(sessionStep)}
-                    placeholder={sessionStep === '1' ? '0' : '0.00'}
-                    tabIndex={2}
-                  />
+                  {tokenState.alreadyGraded ? (
+                    <div className="w-full border border-divider rounded-xl px-4 py-3 text-4xl font-display font-bold text-center text-slate/60 bg-surface/50 select-none">
+                      🔒 {gradeInput}
+                    </div>
+                  ) : (
+                    <input
+                      ref={gradeRef}
+                      type="number"
+                      className="w-full border border-divider rounded-xl px-4 py-3 text-4xl font-display font-bold text-center text-ink focus:ring-2 focus:ring-brand-purple/30 focus:border-brand-purple outline-none transition-all duration-150"
+                      value={gradeInput}
+                      onChange={(e) => setGradeInput(e.target.value)}
+                      onKeyDown={handleGradeKeyDown}
+                      min={MIN_GRADE_HUNDREDTHS / 100}
+                      max={sessionMaxGrade / 100}
+                      step={Number(sessionStep)}
+                      placeholder={sessionStep === '1' ? '0' : '0.00'}
+                      tabIndex={2}
+                    />
+                  )}
                 </div>
               )}
 
               <div className="flex gap-3">
                 <button
                   onClick={handleSubmit}
-                  disabled={!token || !tokenState?.valid || !gradeInput}
+                  disabled={!token || !tokenState?.valid || !gradeInput || tokenState?.alreadyGraded}
                   className="flex-1 py-3 bg-brand-purple text-white rounded-lg font-semibold text-sm hover:bg-accent-dark shadow-sm disabled:opacity-40 transition-colors duration-150"
                   tabIndex={3}
                 >
-                  Submit (Enter)
-                </button>
-                <button
-                  onClick={handleUndo}
-                  className="px-4 py-3 bg-surface text-slate rounded-lg hover:bg-divider hover:text-ink transition-colors duration-150 text-sm border border-divider"
-                  title="Undo last grade"
-                  tabIndex={4}
-                >
-                  Undo
+                  {tokenState?.alreadyGraded ? 'Read-only' : 'Submit (Enter)'}
                 </button>
               </div>
 

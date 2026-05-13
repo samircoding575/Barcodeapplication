@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button'
 
 type Mode = 'signin' | 'signup'
 
-export function EmployeeLoginForm(): JSX.Element {
+export function User1LoginForm(): JSX.Element {
   const login = useAppStore((s) => s.login)
   const loadSessions = useAppStore((s) => s.loadSessions)
   const [mode, setMode] = useState<Mode>('signin')
@@ -27,7 +27,7 @@ export function EmployeeLoginForm(): JSX.Element {
     }
     setLoading(true)
     try {
-      const fn = mode === 'signin' ? window.api.auth.employeeLogin : window.api.auth.employeeSignup
+      const fn = mode === 'signin' ? window.api.auth.user1Login : window.api.auth.user1Signup
       const res = await fn({ email: email.trim().toLowerCase(), password })
       if (res.success && res.user) {
         login(res.user)
@@ -56,7 +56,7 @@ export function EmployeeLoginForm(): JSX.Element {
           className="input-base"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="examiner@example.com"
+          placeholder="user1@example.com"
           autoFocus
           required
         />
@@ -75,7 +75,7 @@ export function EmployeeLoginForm(): JSX.Element {
       </div>
 
       {mode === 'signup' && (
-        <div className="animate-fade-in">
+        <div>
           <label className="block text-xs font-semibold text-slate uppercase tracking-wide mb-1.5">Confirm Password</label>
           <input
             type="password"
@@ -89,7 +89,7 @@ export function EmployeeLoginForm(): JSX.Element {
       )}
 
       {error && (
-        <p className="text-danger text-sm bg-red-50 border border-red-200 rounded-md px-4 py-2.5 animate-fade-in">
+        <p className="text-danger text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 animate-fade-in">
           {error}
         </p>
       )}
@@ -102,7 +102,7 @@ export function EmployeeLoginForm(): JSX.Element {
         <button
           type="button"
           onClick={(e) => switchMode(e, mode === 'signin' ? 'signup' : 'signin')}
-          className="text-sm text-slate hover:text-brand-purple font-semibold transition-colors duration-150"
+          className="text-sm text-slate hover:text-ink font-medium transition-colors"
         >
           {mode === 'signin' ? 'Create new account' : 'Back to sign in'}
         </button>

@@ -12,6 +12,7 @@ import { Import } from './routes/teacher/Import'
 import { History } from './routes/teacher/History'
 import { Sessions } from './routes/admin/Sessions'
 import { Settings } from './routes/admin/Settings'
+import { GradeLog } from './routes/admin/GradeLog'
 
 function PreloadError(): JSX.Element {
   return (
@@ -45,6 +46,7 @@ function AdminShell(): JSX.Element {
           <Route path="/barcodes" element={<BarcodePrint />} />
           <Route path="/results" element={<Reports />} />
           <Route path="/sessions" element={<Sessions />} />
+          <Route path="/grade-log" element={<GradeLog />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
@@ -53,10 +55,10 @@ function AdminShell(): JSX.Element {
   )
 }
 
-function ExaminerShell(): JSX.Element {
+function User1Shell(): JSX.Element {
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      <TopBar role="teacher" />
+      <TopBar role="user1" />
       <AnimatedMain>
         <Routes>
           <Route path="/grade" element={<Grade />} />
@@ -88,7 +90,7 @@ export function App(): JSX.Element {
 
   return (
     <HashRouter>
-      {isAdmin ? <AdminShell /> : <ExaminerShell />}
+      {isAdmin ? <AdminShell /> : <User1Shell />}
     </HashRouter>
   )
 }

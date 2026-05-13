@@ -43,3 +43,29 @@
       placeholder:text-slate/50;
   }
 }
+
+/* ── Arabic / RTL support ─────────────────────────────────────────────────── */
+:root[dir='rtl'] {
+  font-family: 'Segoe UI', 'Tahoma', 'Arial', system-ui, sans-serif;
+}
+
+/* Flip horizontal margins/paddings that are direction-sensitive */
+:root[dir='rtl'] .mr-6  { margin-right: 0; margin-left: 1.5rem; }
+:root[dir='rtl'] .ml-4  { margin-left: 0;  margin-right: 1rem; }
+:root[dir='rtl'] .ml-2  { margin-left: 0;  margin-right: 0.5rem; }
+:root[dir='rtl'] .ml-1  { margin-left: 0;  margin-right: 0.25rem; }
+
+/* Tables remain left-to-right for numeric data */
+:root[dir='rtl'] table {
+  direction: rtl;
+}
+:root[dir='rtl'] th,
+:root[dir='rtl'] td {
+  text-align: right;
+}
+:root[dir='rtl'] th.text-right,
+:root[dir='rtl'] td.text-right {
+  text-align: left;
+}
+
+/* Flex rows that use gap should just work; logical props handle the rest */

@@ -32,12 +32,13 @@ export function registerTeacherHandlers(): void {
   ipcMain.handle(TeacherChannels.SAVE_GRADE, async (_, data: { token: string; value: number }) => {
     try {
       const db = getDb()
+      // Resolve grading rules from the barcode's exam (not session)
       const barcode = await db.barcode.findUnique({
         where: { token: data.token },
-        include: { session: true },
+        include: { exam: true },
       })
       if (!barcode) return { success: false, error: 'Token not found' }
-      const maxGrade = barcode.session.maxGrade
+      const maxGrade = barcode.exam.maxGrade
       if (data.value < MIN_GRADE_HUNDREDTHS || data.value > maxGrade) {
         return { success: false, error: `Grade out of range [0..${(maxGrade / 100).toFixed(2)}]` }
       }
@@ -84,10 +85,14 @@ export function registerTeacherHandlers(): void {
       if (!session) return []
       const barcodes = await getDb().barcode.findMany({
         where: { sessionId: session.id },
-        select: { token: true, grade: { select: { id: true } } },
+        select: { token: true, grade: { select: { id: true, isModified: true } } },
         orderBy: { createdAt: 'asc' },
       })
-      return z.array(TeacherProgressItemSchema).parse(barcodes.map((b) => ({ token: b.token, graded: !!b.grade })))
+      return z.array(TeacherProgressItemSchema).parse(barcodes.map((b) => ({ 
+        token: b.token, 
+        graded: !!b.grade,
+        isModified: b.grade?.isModified ?? false
+      })))
     } catch (err) {
       console.error('[teacher/list-progress]', err)
       return []

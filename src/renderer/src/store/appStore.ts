@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AuthUser, ExamSession } from '@shared/types'
+import type { AuthUser, ExamSession, Exam } from '@shared/types'
 
 interface AppState {
   // Auth
@@ -7,13 +7,16 @@ interface AppState {
   login: (user: AuthUser) => void
   logout: () => Promise<void>
 
-  // Active session (for examiner workflow)
+  // Sessions + exams
   activeSession: ExamSession | null
   sessions: ExamSession[]
   loadSessions: () => Promise<void>
   setActiveSession: (id: string) => Promise<void>
-  createSession: (data: { title: string; year: number; semester?: string | null; maxGrade?: number; step?: string; passingGrade?: number; maxPassCount?: number | null }) => Promise<{ success: boolean; error?: string }>
+  createSession: (data: { title: string; year: number; semester?: string | null }) => Promise<{ success: boolean; error?: string }>
   deleteSession: (id: string) => Promise<{ success: boolean; error?: string }>
+
+  // Exam helpers
+  getExamsForSession: (sessionId: string) => Exam[]
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -62,4 +65,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     return { success: res.success, error: res.error }
   },
+
+  getExamsForSession: (sessionId) => {
+    const session = get().sessions.find((s) => s.id === sessionId)
+    return session?.exams ?? []
+  },
 }))
+
+/** Returns true if the current user is the admin. */
+export function useIsAdmin(): boolean {
+  return useAppStore((s) => s.user?.role === 'ADMIN')
+}

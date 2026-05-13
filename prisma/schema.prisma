@@ -7,35 +7,49 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
 }
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  role      String   @default("TEACHER")
+  role      String   @default("USER1")   // ADMIN | USER1
   pwdHash   String
   createdAt DateTime @default(now())
 }
 
 model ExamSession {
-  id           String    @id @default(cuid())
-  title        String
-  year         Int
-  semester     String?
-  maxGrade     Int       @default(2000)
-  step         String    @default("0.25")
-  passingGrade Int       @default(1000)
+  id        String    @id @default(cuid())
+  title     String
+  year      Int
+  semester  String?
+  isActive  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  exams     Exam[]
+  barcodes  Barcode[]
+}
+
+model Exam {
+  id           String      @id @default(cuid())
+  session      ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId    String
+  name         String
+  order        Int         @default(0)
+  maxGrade     Int         @default(2000)
+  step         String      @default("0.25")
+  passingGrade Int         @default(1000)
   maxPassCount Int?
-  isActive     Boolean   @default(false)
-  createdAt    DateTime  @default(now())
   barcodes     Barcode[]
+  createdAt    DateTime    @default(now())
+
+  @@unique([sessionId, order])
 }
 
 model AppConfig {
-  id           String  @id @default("singleton")
-  orgName      String  @default("Lebanese Bar Association")
-  orgNameAr    String  @default("نقابة المحامين في بيروت")
+  id        String @id @default("singleton")
+  orgName   String @default("Lebanese Bar Association")
+  orgNameAr String @default("نقابة المحامين في بيروت")
 }
 
 model Student {
@@ -53,19 +67,42 @@ model Barcode {
   studentId String
   session   ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId String
+  exam      Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId    String
   createdAt DateTime    @default(now())
   grade     Grade?
 
-  @@unique([studentId, sessionId])
+  @@unique([studentId, examId])
 }
 
 model Grade {
-  id         String   @id @default(cuid())
-  barcode    Barcode  @relation(fields: [barcodeId], references: [id], onDelete: Cascade)
-  barcodeId  String   @unique
-  value      Int
-  gradedAt   DateTime @default(now())
-  gradedById String?
+  id             String    @id @default(cuid())
+  barcode        Barcode   @relation(fields: [barcodeId], references: [id], onDelete: Cascade)
+  barcodeId      String    @unique
+  value          Int
+  gradedAt       DateTime  @default(now())
+  gradedById     String?
+  isModified     Boolean   @default(false)
+  originalValue  Int?
+  modifiedById   String?
+  modifiedReason String?
+  modifiedAt     DateTime?
+}
+
+model ChangeRequest {
+  id            String    @id @default(cuid())
+  requesterId   String
+  barcodeId     String
+  proposedValue Int
+  reason        String
+  status        String    @default("PENDING")  // PENDING | APPROVED | REJECTED
+  resolverId    String?
+  resolverNote  String?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([status])
+  @@index([barcodeId])
 }
 
 model AuditLog {

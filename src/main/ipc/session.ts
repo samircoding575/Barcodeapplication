@@ -2,8 +2,16 @@ import { ipcMain } from 'electron'
 import { listSessions, getActiveSession, createSession, setActiveSession, deleteSession } from '../services/session'
 import { SessionChannels } from '../../shared/ipc'
 
-function serializeSession(s: { id: string; title: string; year: number; semester: string | null; maxGrade: number; step: string; passingGrade: number; maxPassCount: number | null; isActive: boolean; createdAt: Date }) {
-  return { ...s, createdAt: s.createdAt.toISOString() }
+function serializeSession(s: {
+  id: string; title: string; year: number; semester: string | null
+  isActive: boolean; createdAt: Date
+  exams: { id: string; sessionId: string; name: string; order: number; maxGrade: number; step: string; passingGrade: number; maxPassCount: number | null; createdAt: Date }[]
+}) {
+  return {
+    ...s,
+    createdAt: s.createdAt.toISOString(),
+    exams: s.exams.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
+  }
 }
 
 export function registerSessionHandlers(): void {
@@ -27,7 +35,7 @@ export function registerSessionHandlers(): void {
     }
   })
 
-  ipcMain.handle(SessionChannels.CREATE, async (_, data: { title: string; year: number; semester?: string | null; maxGrade?: number; step?: string; passingGrade?: number; maxPassCount?: number | null }) => {
+  ipcMain.handle(SessionChannels.CREATE, async (_, data: { title: string; year: number; semester?: string | null }) => {
     try {
       const s = await createSession(data)
       return { success: true, session: serializeSession(s) }

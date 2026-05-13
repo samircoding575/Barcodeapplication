@@ -1,72 +1,26 @@
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4;
+    margin: 0;
   }
 
-  #barcode-print-area,
-  #barcode-print-area * {
-    visibility: visible;
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    background: white !important;
   }
 
-  #barcode-print-area {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-  }
-
-  /* Show the print-only header */
-  .print-header {
-    display: block !important;
-    visibility: visible !important;
-    width: 100%;
-  }
-
-  /* Fix for pagination: Use flex layout with wrapping instead of CSS grid */
-  #barcode-print-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    padding: 10mm;
-    padding-top: 4mm;
-    gap: 8mm;
-  }
-
-  .barcode-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    /* Strict dimensions for standard 3-column labels */
-    width: 60mm;
-    height: 35mm;
-    box-sizing: border-box;
-    padding: 4mm;
-    border: 1px dashed #ccc; /* Guide line for cutting/labels */
-    /* Crucial pagination rules */
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  .barcode-card svg {
-    width: 50mm !important;
-    height: 15mm !important;
-  }
-
-  .barcode-card-label {
-    font-size: 8pt;
-    text-align: center;
-    margin-top: 3mm;
-    word-break: break-all;
-    line-height: 1.2;
-  }
-
-  nav,
-  .no-print {
+  /* Hide the entire app UI — the print portal is the only element shown */
+  body > *:not(#barcode-print-area) {
     display: none !important;
   }
 
-  /* Remove browser headers and footers */
-  @page {
-    margin: 5mm;
+  /* NOTE: do NOT add position:fixed here.
+     The print-page divs inside use position:relative (inline style) and
+     position:fixed on the parent changes the containing-block, breaking
+     the absolute positioning of the slot children. */
+  #barcode-print-area {
+    display: block !important;
   }
 }

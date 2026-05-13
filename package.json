@@ -1,7 +1,8 @@
 {
   "name": "qrecs",
   "version": "0.1.0",
-  "description": "Barcode-Based Exam Correction System",
+  "author": "ScanGrade Team",
+  "description": "ScanGrade Barcode-Based Exam Correction System",
   "main": "out/main/index.js",
   "scripts": {
     "predev": "prisma db push",
@@ -12,7 +13,40 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.scangrade.app",
+    "productName": "ScanGrade",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "dir"
+      ],
+      "cscLink": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "installerIcon": "src/renderer/src/assets/softretail-logo.png",
+      "uninstallerIcon": "src/renderer/src/assets/softretail-logo.png"
+    },
+    "files": [
+      "out/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/client/**/*"
+    ],
+    "extraResources": [
+      "prisma/qrecs.db",
+      "prisma/schema.prisma",
+      "node_modules/.prisma/**/*",
+      "node_modules/@prisma/client/**/*"
+    ],
+    "asar": false
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
@@ -21,6 +55,7 @@
     "papaparse": "^5.4.1",
     "react-barcode": "^1.5.3",
     "react-router-dom": "^6.23.1",
+    "recharts": "^3.8.1",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8",
     "zustand": "^4.5.2"
@@ -34,6 +69,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
     "electron": "^31.0.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^2.3.0",
     "postcss": "^8.4.38",
     "prisma": "^5.14.0",

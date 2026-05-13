@@ -4,7 +4,6 @@ import { readFileSync } from 'fs'
 import { getDb } from '../db'
 import { parseGradeInput, MIN_GRADE_HUNDREDTHS, FALLBACK_MAX_GRADE_HUNDREDTHS } from '../../shared/types'
 import type { ValidatedRow, RowStatus, ImportPreview } from '../../shared/types'
-import { getActiveSession } from './session'
 
 interface RawRow {
   token: string
@@ -27,8 +26,6 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
   const db = getDb()
   const seenTokens = new Map<string, number>()
   const rows: ValidatedRow[] = []
-  const session = await getActiveSession()
-  const MAX_GRADE = session ? session.maxGrade : FALLBACK_MAX_GRADE_HUNDREDTHS
 
   for (let i = 0; i < raw.length; i++) {
     const r = raw[i]
@@ -47,11 +44,16 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
     seenTokens.set(token, i)
 
     const proposedValue = parseGradeInput(gradeStr)
-    if (
-      isNaN(proposedValue) ||
-      proposedValue < MIN_GRADE_HUNDREDTHS ||
-      proposedValue > MAX_GRADE
-    ) {
+
+    // Look up barcode first to get exam-specific max grade
+    const barcode = await db.barcode.findUnique({
+      where: { token },
+      include: { grade: true, exam: { select: { maxGrade: true } } },
+    })
+
+    const MAX_GRADE = barcode?.exam?.maxGrade ?? FALLBACK_MAX_GRADE_HUNDREDTHS
+
+    if (isNaN(proposedValue) || proposedValue < MIN_GRADE_HUNDREDTHS || proposedValue > MAX_GRADE) {
       rows.push({
         token,
         status: 'invalid_grade',
@@ -62,11 +64,6 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
       })
       continue
     }
-
-    const barcode = await db.barcode.findUnique({
-      where: { token },
-      include: { grade: true },
-    })
 
     if (!barcode) {
       rows.push({ token, status: 'unknown_token', proposedValue })
@@ -92,10 +89,7 @@ export async function previewImport(filePath: string): Promise<ImportPreview> {
   return { rows, summary }
 }
 
-export async function commitImport(
-  rows: ValidatedRow[],
-  acceptedStatuses: RowStatus[]
-): Promise<number> {
+export async function commitImport(rows: ValidatedRow[], acceptedStatuses: RowStatus[]): Promise<number> {
   const db = getDb()
   const toCommit = rows.filter((r) => acceptedStatuses.includes(r.status))
   let committed = 0

@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 export const AuthChannels = {
   ADMIN_LOGIN: 'auth/admin-login',
-  EMPLOYEE_LOGIN: 'auth/employee-login',
-  EMPLOYEE_SIGNUP: 'auth/employee-signup',
+  USER1_LOGIN: 'auth/user1-login',
+  USER1_SIGNUP: 'auth/user1-signup',
   LOGOUT: 'auth/logout',
 } as const
 
@@ -15,25 +15,36 @@ export const SessionChannels = {
   DELETE: 'session/delete',
 } as const
 
+export const ExamChannels = {
+  LIST: 'exam/list',
+  CREATE: 'exam/create',
+  UPDATE: 'exam/update',
+  DELETE: 'exam/delete',
+} as const
+
 export const AdminChannels = {
   IMPORT_STUDENTS: 'admin/import-students',
   ADD_STUDENT: 'admin/add-student',
   DELETE_STUDENT: 'admin/delete-student',
+  DELETE_STUDENTS_BATCH: 'admin/delete-students-batch',
   GET_STUDENTS: 'admin/get-students',
   GENERATE_BARCODE_BATCH: 'admin/generate-barcode-batch',
   LIST_BARCODES: 'admin/list-barcodes',
   GET_RESULTS: 'admin/get-results',
   EXPORT_CSV: 'admin/export-csv',
+  EXPORT_XLSX: 'admin/export-xlsx',
   GET_MASTER_VIEW: 'admin/get-master-view',
-  LIST_EXAMINERS: 'admin/list-examiners',
-  DELETE_EXAMINER: 'admin/delete-examiner',
+  LIST_USERS: 'admin/list-users',
+  DELETE_USER: 'admin/delete-user',
   CLEAR_SESSION_GRADES: 'admin/clear-session-grades',
   RESET_SYSTEM: 'admin/reset-system',
   GET_SYSTEM_STATS: 'admin/get-system-stats',
   GET_CONFIG: 'admin/get-config',
   UPDATE_CONFIG: 'admin/update-config',
   GET_DASHBOARD_DATA: 'admin/get-dashboard-data',
-  UPDATE_SESSION_THRESHOLDS: 'admin/update-session-thresholds',
+  MODIFY_GRADE: 'admin/modify-grade',
+  GET_GRADE_LOG: 'admin/get-grade-log',
+  PRINT_BARCODES_PDF: 'admin/print-barcodes-pdf',
 } as const
 
 export const TeacherChannels = {
@@ -86,4 +97,11 @@ export const ImportPreviewSchema = z.object({
 export const TeacherProgressItemSchema = z.object({
   token: z.string(),
   graded: z.boolean(),
+  isModified: z.boolean(),
+})
+
+export const ModifyGradeRequestSchema = z.object({
+  barcodeId: z.string().min(1),
+  newValue: z.number().int().nonnegative(),
+  reason: z.string().min(3, 'Reason must be at least 3 characters'),
 })

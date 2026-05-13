@@ -18,6 +18,6 @@ export async function findUserByEmail(email: string) {
 export async function createUser(email: string, password: string) {
   const pwdHash = await hashPassword(password)
   return getDb().user.create({
-    data: { email, pwdHash, role: 'TEACHER' },
+    data: { email, pwdHash, role: 'USER1' },
   })
 }
