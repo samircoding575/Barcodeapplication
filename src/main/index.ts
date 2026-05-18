@@ -2,13 +2,14 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import { AdminChannels } from '@shared/ipc'
-import { closeDb } from './db'
+import { closeDb, getDb, migrateLegacyUserRoles } from './db'
 import { registerAdminHandlers } from './ipc/admin'
 import { registerTeacherHandlers } from './ipc/teacher'
 import { registerConfigHandlers } from './ipc/config'
 import { registerAuthHandlers } from './ipc/auth'
 import { registerSessionHandlers } from './ipc/session'
 import { registerExamHandlers } from './ipc/exam'
+import { buildBarcodesDocx, type BarcodeExportRecord } from './services/barcodeDocx'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -31,41 +32,50 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle(AdminChannels.PRINT_BARCODES_PDF, async (event) => {
+ipcMain.handle(AdminChannels.EXPORT_BARCODES_DOCX, async (event, args: { records: BarcodeExportRecord[] }) => {
   const win = BrowserWindow.fromWebContents(event.sender)
   if (!win) return { error: 'No window found' }
 
-  const pdfBuffer = await win.webContents.printToPDF({
-    printBackground: true,
-    pageSize: 'A4',
-    landscape: false,
-    margins: { marginType: 'custom', top: 0, bottom: 0, left: 0, right: 0 }
-  })
+  try {
+    const db = getDb()
+    const cfg = await db.appConfig.findUnique({ where: { id: 'singleton' } })
+    const layout = {
+      cellW: cfg?.printStickerW ?? 48.5,
+      cellH: cfg?.printStickerH ?? 16.9,
+      topMargin: cfg?.printTopMm ?? 0,
+      leftMargin: cfg?.printLeftMm ?? 0,
+    }
 
-  const { canceled, filePath } = await dialog.showSaveDialog(win, {
-    title: 'Save Barcode PDF',
-    defaultPath: `barcodes-${new Date().toISOString().slice(0, 10)}.pdf`,
-    filters: [{ name: 'PDF', extensions: ['pdf'] }],
-  })
+    const buffer = await buildBarcodesDocx(args.records ?? [], layout)
 
-  if (!canceled && filePath) {
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Save Barcodes (Word)',
+      defaultPath: `barcodes-${new Date().toISOString().slice(0, 10)}.docx`,
+      filters: [{ name: 'Word Document', extensions: ['docx'] }],
+    })
+
+    if (canceled || !filePath) return { canceled: true }
+
     try {
-      fs.writeFileSync(filePath, pdfBuffer)
+      fs.writeFileSync(filePath, buffer)
       await shell.openPath(filePath)
       return { success: true }
     } catch (err: any) {
       if (err.code === 'EBUSY') {
-        dialog.showErrorBox('File in Use', `The file is currently open in another program.\n\nPlease close the PDF viewer and try again.\n\nPath: ${filePath}`)
+        dialog.showErrorBox('File in Use', `The file is currently open in another program.\n\nPlease close Word and try again.\n\nPath: ${filePath}`)
         return { success: false, error: 'File in use' }
       }
-      console.error('[print-pdf]', err)
+      console.error('[export-docx]', err)
       return { success: false, error: err.message }
     }
+  } catch (err: any) {
+    console.error('[export-docx]', err)
+    return { success: false, error: err.message }
   }
-  return { canceled: true }
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await migrateLegacyUserRoles()
   registerAuthHandlers()
   registerSessionHandlers()
   registerExamHandlers()

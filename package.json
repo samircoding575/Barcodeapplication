@@ -20,38 +20,50 @@
     "appId": "com.scangrade.app",
     "productName": "ScanGrade",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
+    "nodeGypRebuild": false,
+    "asar": false,
     "win": {
       "target": [
-        "dir"
+        { "target": "nsis", "arch": ["x64"] }
       ],
+      "icon": "build/icon.ico",
+      "artifactName": "ScanGrade-Setup-${version}.${ext}",
       "cscLink": null
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "installerIcon": "src/renderer/src/assets/softretail-logo.png",
-      "uninstallerIcon": "src/renderer/src/assets/softretail-logo.png"
+      "createStartMenuShortcut": true,
+      "shortcutName": "ScanGrade",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerLanguages": ["en_US"]
     },
     "files": [
       "out/**/*",
-      "node_modules/.prisma/**/*",
       "node_modules/@prisma/client/**/*"
+    ],
+    "extraFiles": [
+      {
+        "from": "node_modules/.prisma",
+        "to": "resources/app/node_modules/.prisma"
+      }
     ],
     "extraResources": [
-      "prisma/qrecs.db",
-      "prisma/schema.prisma",
-      "node_modules/.prisma/**/*",
-      "node_modules/@prisma/client/**/*"
-    ],
-    "asar": false
+      { "from": "prisma/qrecs.db", "to": "prisma/qrecs.db" }
+    ]
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^5.14.0",
     "bcryptjs": "^3.0.3",
+    "bwip-js": "^4.10.1",
+    "docx": "^9.6.1",
     "papaparse": "^5.4.1",
     "react-barcode": "^1.5.3",
     "react-router-dom": "^6.23.1",
@@ -71,6 +83,7 @@
     "electron": "^31.0.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^2.3.0",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.4.38",
     "prisma": "^5.14.0",
     "tailwindcss": "^3.4.4",

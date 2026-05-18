@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import type { TeacherProgressItem } from '@shared/types'
-import { formatGrade, parseGradeInput, MIN_GRADE_HUNDREDTHS } from '@shared/types'
+import { formatGrade, parseGradeInput, MIN_GRADE_HUNDREDTHS, FALLBACK_MAX_GRADE_HUNDREDTHS } from '@shared/types'
 import { useAppStore } from '../../store/appStore'
 import { StatusDot } from '../../components/ui/StatusDot'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -27,7 +27,17 @@ export function Grade(): JSX.Element {
     )
   }
 
-  return <GradePanel sessionMaxGrade={activeSession.maxGrade} sessionStep={activeSession.step} />
+  // The UI's min/max/step on the number input is only a soft hint — the server
+  // enforces the real per-exam limits when the grade is saved. Use the most
+  // permissive bound across all exams in the session so the input never blocks
+  // a valid grade for any exam the teacher might be scanning.
+  const exams = activeSession.exams ?? []
+  const sessionMaxGrade = exams.length > 0
+    ? Math.max(...exams.map((e) => e.maxGrade))
+    : FALLBACK_MAX_GRADE_HUNDREDTHS
+  const sessionStep = exams.length > 0 ? exams[0].step : '0.25'
+
+  return <GradePanel sessionMaxGrade={sessionMaxGrade} sessionStep={sessionStep} />
 }
 
 function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number; sessionStep: string }): JSX.Element {
@@ -42,6 +52,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
   const [gradeInput, setGradeInput] = useState('')
   const [tokenState, setTokenState] = useState<TokenState | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [isLooking, setIsLooking] = useState(false)
 
   const scanRef = useRef<HTMLInputElement>(null)
   const gradeRef = useRef<HTMLInputElement>(null)
@@ -104,6 +115,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
     setGradeInput('')
     setTokenState(null)
     setFeedback(null)
+    setIsLooking(false)
     setTimeout(() => scanRef.current?.focus(), 50)
   }, [])
 
@@ -111,22 +123,26 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
     setToken(t)
     setTokenState(null)
     setFeedback(null)
-    const res = await window.api.teacher.lookupToken({ token: t })
-    setTokenState({
-      valid: res.valid,
-      alreadyGraded: res.alreadyGraded ?? false,
-      currentGrade: res.currentGrade,
-    })
-    if (res.valid) {
-      if (res.alreadyGraded && res.currentGrade != null) {
-        setGradeInput(formatGrade(res.currentGrade))
+    setIsLooking(true)
+    try {
+      const res = await window.api.teacher.lookupToken({ token: t })
+      setTokenState({
+        valid: res.valid,
+        alreadyGraded: res.alreadyGraded ?? false,
+        currentGrade: res.currentGrade,
+      })
+      if (res.valid) {
+        if (res.alreadyGraded && res.currentGrade != null) {
+          setGradeInput(formatGrade(res.currentGrade))
+        }
+        if (!res.alreadyGraded) {
+          setTimeout(() => { gradeRef.current?.focus(); gradeRef.current?.select() }, 50)
+        }
+      } else {
+        setFeedback({ type: 'error', msg: `Barcode not recognised — this token does not exist in the system.` })
       }
-      if (!res.alreadyGraded) {
-        setTimeout(() => { gradeRef.current?.focus(); gradeRef.current?.select() }, 50)
-      }
-    } else {
-      setFeedback({ type: 'error', msg: `Barcode does not exist: ${t}` })
-      setTimeout(() => alert(`WARNING: The barcode "${t}" is not recognized by the system and does not exist.`), 50)
+    } finally {
+      setIsLooking(false)
     }
   }
 
@@ -270,7 +286,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
                 <input
                   ref={scanRef}
                   type="text"
-                  className="input-base font-mono"
+                  className="input-base font-mono disabled:opacity-50 disabled:cursor-wait"
                   value={token}
                   onChange={(e) => { setToken(e.target.value); setTokenState(null) }}
                   onKeyDown={handleScanKeyDown}
@@ -279,14 +295,24 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
                   autoCorrect="off"
                   spellCheck={false}
                   tabIndex={1}
+                  disabled={isLooking}
                 />
-                {tokenState && (
-                  <p className={`text-xs mt-1.5 font-semibold ${tokenState.valid ? 'text-brand-soft-green' : 'text-danger'}`}>
+                {isLooking && (
+                  <div className="flex items-center gap-2 mt-1.5 animate-fade-in">
+                    <svg className="animate-spin h-3.5 w-3.5 text-brand-purple shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <span className="text-xs font-semibold text-brand-purple">Looking up barcode…</span>
+                  </div>
+                )}
+                {!isLooking && tokenState && (
+                  <p className={`text-xs mt-1.5 font-semibold animate-fade-in ${tokenState.valid ? 'text-brand-soft-green' : 'text-danger'}`}>
                     {tokenState.valid
                       ? tokenState.alreadyGraded
                         ? `✓ Already graded (${formatGrade(tokenState.currentGrade ?? 0)}) — read-only`
-                        : '✓ Valid token'
-                      : '✗ Token not found'}
+                        : '✓ Valid token — enter grade below'
+                      : '✗ Barcode not found in system'}
                   </p>
                 )}
               </div>
@@ -322,7 +348,7 @@ function GradePanel({ sessionMaxGrade, sessionStep }: { sessionMaxGrade: number;
               <div className="flex gap-3">
                 <button
                   onClick={handleSubmit}
-                  disabled={!token || !tokenState?.valid || !gradeInput || tokenState?.alreadyGraded}
+                  disabled={isLooking || !token || !tokenState?.valid || !gradeInput || tokenState?.alreadyGraded}
                   className="flex-1 py-3 bg-brand-purple text-white rounded-lg font-semibold text-sm hover:bg-accent-dark shadow-sm disabled:opacity-40 transition-colors duration-150"
                   tabIndex={3}
                 >

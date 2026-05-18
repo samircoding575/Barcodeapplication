@@ -177,6 +177,12 @@ export const translations = {
     language_desc: 'Switch the interface language. Arabic layout uses right-to-left text direction.',
     lang_en: 'English',
     lang_ar: 'العربية',
+    print_layout: 'Print Layout',
+    print_layout_desc: 'Print at Actual Size (100%) — NOT "Fit to printable area" — for accurate alignment. The sticker grid is auto-centered on A4 (4 × 17 cells of 48.5 × 16.9 mm per APLI ref. 1282). Use the offset fields only to fine-tune for your specific printer\'s hardware margins.',
+    print_top_mm: 'Vertical Offset (mm)',
+    print_left_mm: 'Horizontal Offset (mm)',
+    print_sticker_w: 'Sticker Width (mm)',
+    print_sticker_h: 'Sticker Height (mm)',
   },
 
   ar: {
@@ -355,6 +361,12 @@ export const translations = {
     language_desc: 'تغيير لغة الواجهة. يستخدم التخطيط العربي اتجاه النص من اليمين إلى اليسار.',
     lang_en: 'English',
     lang_ar: 'العربية',
+    print_layout: 'تخطيط الطباعة',
+    print_layout_desc: 'اطبع بالحجم الفعلي (100%) — وليس "ملاءمة المنطقة القابلة للطباعة" — لمحاذاة دقيقة. تتمركز شبكة الملصقات تلقائياً على ورقة A4 (4 × 17 خلية بقياس 48.5 × 16.9 مم وفق APLI ref. 1282). استخدم حقول الإزاحة فقط للضبط الدقيق وفقاً لهوامش طابعتك.',
+    print_top_mm: 'الإزاحة الرأسية (مم)',
+    print_left_mm: 'الإزاحة الأفقية (مم)',
+    print_sticker_w: 'عرض الملصق (مم)',
+    print_sticker_h: 'ارتفاع الملصق (مم)',
   },
 } as const
 

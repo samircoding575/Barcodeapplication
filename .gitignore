@@ -1,7 +1,9 @@
 node_modules/
-dist/
 out/
+dist/
+build/
+.env
 prisma/qrecs.db
 prisma/qrecs.db-journal
 prisma/migrations/
-.env
+

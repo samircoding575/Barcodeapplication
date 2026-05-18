@@ -1,5 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState, useMemo } from 'react'
 import Barcode from 'react-barcode'
 import type { AdminBarcode } from '@shared/types'
 import { formatGrade } from '@shared/types'
@@ -25,9 +24,7 @@ export function BarcodePrint(): JSX.Element {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
 
-  // 'rendering' = SVGs mounting, 'saving' = PDF generation in progress
-  const [printState, setPrintState] = useState<'idle' | 'rendering' | 'saving'>('idle')
-  const printListRef = useRef<AdminBarcode[]>([])
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (activeSession && !viewSessionId) setViewSessionId(activeSession.id)
@@ -40,27 +37,6 @@ export function BarcodePrint(): JSX.Element {
       .then(setBarcodes)
       .finally(() => setLoading(false))
   }, [viewSessionId, viewExamId])
-
-  // Wait for SVGs to render, then generate PDF via Electron
-  useEffect(() => {
-    if (printState !== 'rendering') return
-    const id = setTimeout(async () => {
-      setPrintState('saving')
-      try {
-        await window.api.admin.printBarcodePdf()
-      } finally {
-        setPrintState('idle')
-      }
-    }, 500)
-    return () => clearTimeout(id)
-  }, [printState])
-
-  function handlePrint() {
-    printListRef.current = selectedIds.size > 0
-      ? barcodes.filter((b) => selectedIds.has(b.id))
-      : filtered
-    setPrintState('rendering')
-  }
 
   const viewingSession = sessions.find((s) => s.id === viewSessionId)
   const exams = viewingSession?.exams ?? []
@@ -89,16 +65,28 @@ export function BarcodePrint(): JSX.Element {
   const sessionLabel = viewingSession
     ? [viewingSession.title, viewingSession.year, viewingSession.semester].filter(Boolean).join(' · ')
     : 'Unknown Session'
-  const printLabel = viewExamId
-    ? `${sessionLabel} — ${exams.find((e) => e.id === viewExamId)?.name ?? ''}`
-    : sessionLabel
 
-  const isPrinting = printState !== 'idle'
+  async function handleExportWord() {
+    const list = selectedIds.size > 0
+      ? barcodes.filter((b) => selectedIds.has(b.id))
+      : filtered
+    const records = list.map((b) => ({
+      token: b.token,
+      studentName: b.student.name,
+      externalId: b.student.externalId,
+      examName: b.examName,
+    }))
+    setExporting(true)
+    try {
+      await window.api.admin.exportBarcodesDocx({ records })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div>
-      {/* Screen controls */}
-      <div className="no-print p-8">
+      <div className="p-8">
         <PageHeader
           title="Barcodes"
           subtitle={viewingSession ? sessionLabel : 'Select a session to view barcodes'}
@@ -173,22 +161,25 @@ export function BarcodePrint(): JSX.Element {
                   <span className="text-xs text-slate">{filtered.length} of {barcodes.length}</span>
                 )}
               </div>
-              
-              <div className="flex items-center gap-3">
-                {selectedIds.size > 0 && (
-                  <Button variant="secondary" onClick={() => setSelectedIds(new Set())}>
-                    Clear ({selectedIds.size})
+
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-3">
+                  {selectedIds.size > 0 && (
+                    <Button variant="secondary" onClick={() => setSelectedIds(new Set())}>
+                      Clear ({selectedIds.size})
+                    </Button>
+                  )}
+                  <Button onClick={handleExportWord} loading={exporting}>
+                    {exporting
+                      ? 'Generating Word…'
+                      : selectedIds.size > 0
+                      ? `Export Word (${selectedIds.size})`
+                      : `Export Word (${filtered.length})`}
                   </Button>
-                )}
-                <Button onClick={handlePrint} loading={isPrinting}>
-                  {printState === 'saving'
-                    ? 'Generating PDF…'
-                    : printState === 'rendering'
-                    ? 'Preparing…'
-                    : selectedIds.size > 0
-                    ? `Print ${selectedIds.size}`
-                    : `Print All ${filtered.length}`}
-                </Button>
+                </div>
+                <p className="text-xs text-slate">
+                  Opens in Word. Resize cells, margins, or fonts directly in the document before printing.
+                </p>
               </div>
             </div>
 
@@ -292,206 +283,6 @@ export function BarcodePrint(): JSX.Element {
           </>
         )}
       </div>
-
-      {/* ── Print portal — APLI Ref. 01282: 4×17 stickers, 48.5×16.9mm, A4 zero-margin ── */}
-      {isPrinting && createPortal(
-        <div id="barcode-print-area" dir="ltr" style={{ display: 'block', width: '210mm' }}>
-          {(() => {
-            const chunks: AdminBarcode[][] = []
-            for (let i = 0; i < printListRef.current.length; i += RECORDS_PER_PAGE) {
-              chunks.push(printListRef.current.slice(i, i + RECORDS_PER_PAGE))
-            }
-
-            return chunks.map((chunk, pageIdx) => (
-              <div key={`page-${pageIdx}`} style={PAGE_STYLE}>
-                {chunk.map((entry, i) => {
-                  const row = Math.floor(i / RECORDS_PER_ROW)
-                  const col = i % RECORDS_PER_ROW
-                  const top = SHEET_TOP_MARGIN_MM + row * STICKER_H_MM
-                  const left = SHEET_LEFT_MARGIN_MM + col * SLOT_W_MM
-
-                  const name = entry.student.name || ''
-                  const half = name.length / 2
-                  const isDuplicated = name.length > 0 && name.length % 2 === 0 && name.slice(0, half) === name.slice(half)
-                  const cleanName = isDuplicated ? name.slice(0, half) : name
-
-                  return (
-                    <div key={`rec-${entry.id}`} style={{ ...SLOT_STYLE, top: `${top}mm`, left: `${left}mm` }}>
-                      <div style={BARCODE_CELL_STYLE}>
-                        <ConstrainedBarcode value={entry.token} />
-                        <p style={TOKEN_TEXT_STYLE}>{entry.token}</p>
-                      </div>
-                      <div style={TEXT_CELL_STYLE} dir="rtl">
-                        <p style={LABEL_NAME_STYLE}>{cleanName}</p>
-                        <p style={LABEL_META_STYLE}>ID: {entry.student.externalId}</p>
-                        <p style={LABEL_META_STYLE}>{entry.examName}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ))
-          })()}
-        </div>,
-        document.body
-      )}
-    </div>
-  )
-}
-
-// ─── APLI Ref. 01282 sheet geometry ────────────────────────────────────────────
-// A4 (210×297mm) → 17 rows × 4 stickers, each 48.5×16.9mm
-// One logical record = 2 adjacent stickers (barcode + text) = 97mm × 16.9mm
-// Page math: 8 + (2 × 97) + 8 = 210mm   ·   4.85 + (17 × 16.9) + 4.85 = 297mm
-const STICKER_W_MM = 48.5
-const STICKER_H_MM = 16.9
-const SLOT_W_MM = STICKER_W_MM * 2   // 97mm per logical record (barcode + text)
-const SHEET_TOP_MARGIN_MM = 4.85
-const SHEET_LEFT_MARGIN_MM = 8.0
-const RECORDS_PER_ROW = 2
-const ROWS_PER_PAGE = 17
-const RECORDS_PER_PAGE = RECORDS_PER_ROW * ROWS_PER_PAGE  // 34
-
-// ─── All layout in inline styles — mode-agnostic (screen + print identical) ───
-// This avoids @media print dependency: printToPDF re-layouts with print CSS,
-// but any intermediate screen snapshot would see broken flow if styles were
-// CSS-only. Inline styles apply unconditionally in both rendering contexts.
-
-const PAGE_STYLE: React.CSSProperties = {
-  position: 'relative',
-  width: '210mm',
-  height: '297mm',
-  overflow: 'hidden',
-  background: 'white',
-  pageBreakAfter: 'always',
-  margin: 0,
-  padding: 0,
-  boxSizing: 'border-box',
-}
-
-const SLOT_STYLE: React.CSSProperties = {
-  position: 'absolute',
-  width: `${SLOT_W_MM}mm`,
-  height: `${STICKER_H_MM}mm`,
-  maxHeight: `${STICKER_H_MM}mm`,
-  display: 'flex',
-  flexDirection: 'row',
-  overflow: 'hidden',
-  // top/left injected per-slot at render time
-}
-
-const BARCODE_CELL_STYLE: React.CSSProperties = {
-  width: `${STICKER_W_MM}mm`,
-  height: `${STICKER_H_MM}mm`,
-  maxHeight: `${STICKER_H_MM}mm`,
-  flexShrink: 0,
-  overflow: 'hidden',
-  padding: '1mm 1.5mm',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  // flex-end pushes the SVG+token group to the bottom of the cell so the
-  // token text sits immediately under the bars with no drift from top padding
-  justifyContent: 'flex-end',
-  gap: '0.3mm',
-  boxSizing: 'border-box',
-  // Each physical sticker cell gets its own visible outline
-  boxShadow: 'inset 0 0 0 0.35mm rgba(30, 30, 100, 0.30)',
-}
-
-// Token text beneath barcode SVG
-const TOKEN_TEXT_STYLE: React.CSSProperties = {
-  margin: 0,
-  padding: 0,
-  width: '100%',
-  fontSize: '6.5pt',
-  fontWeight: 'bold',
-  fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-  color: '#000',
-  textAlign: 'center',
-  lineHeight: 1,
-  letterSpacing: '0.3px',
-  maxHeight: '3mm',
-  overflow: 'hidden',
-  whiteSpace: 'nowrap',
-}
-
-const TEXT_CELL_STYLE: React.CSSProperties = {
-  width: `${STICKER_W_MM}mm`,
-  height: `${STICKER_H_MM}mm`,
-  maxHeight: `${STICKER_H_MM}mm`,
-  flexShrink: 0,
-  overflow: 'hidden',
-  padding: '1mm 2mm',
-  display: 'flex',
-  flexDirection: 'column',
-  // space-evenly distributes ~1.55mm between each of the 3 lines and at the edges,
-  // which is well above the ~0.3mm threshold PDF readers use to merge adjacent lines.
-  justifyContent: 'space-evenly',
-  direction: 'rtl',
-  textAlign: 'right',
-  boxSizing: 'border-box',
-  // Matching outline — each physical sticker cell is its own highlighted box
-  boxShadow: 'inset 0 0 0 0.35mm rgba(30, 30, 100, 0.30)',
-}
-
-const LABEL_NAME_STYLE: React.CSSProperties = {
-  margin: 0,   // flex gap handled by space-evenly, not explicit margins
-  padding: 0,
-  width: '100%',
-  fontSize: '7.5pt',
-  fontWeight: 'bold',
-  fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-  color: '#000',
-  lineHeight: 1.2,
-  maxHeight: '4mm',
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-}
-
-const LABEL_META_STYLE: React.CSSProperties = {
-  margin: 0,   // flex gap handled by space-evenly, not explicit margins
-  padding: 0,
-  width: '100%',
-  fontSize: '6.5pt',
-  fontWeight: 'normal',
-  fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-  color: '#333',
-  lineHeight: 1.2,
-  maxHeight: '3.5mm',
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-}
-
-// Scales the react-barcode SVG to exactly 45×11mm via SVG attribute mutation.
-//
-// react-barcode (jsbarcode) already emits viewBox="0 0 W H" (unitless integers)
-// AND width="Wpx" height="Hpx" (with "px" suffix).  The correct strategy is:
-//   1. Leave the existing viewBox UNTOUCHED — it is already correct.
-//   2. Add preserveAspectRatio so bars scale uniformly when dimensions change.
-//   3. Overwrite width/height attrs with "45mm"/"11mm".
-// DO NOT re-read width/height and rebuild viewBox — getAttribute('width') returns
-// "300px" (with suffix), and setting viewBox="0 0 300px 50px" is invalid SVG,
-// which was the root cause of the previous broken-barcode regression.
-function ConstrainedBarcode({ value }: { value: string }): JSX.Element {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const svg = ref.current?.querySelector('svg')
-    if (!svg) return
-    // react-barcode already set viewBox correctly — do not overwrite it
-    // xMidYMax: bars pin to the BOTTOM of the SVG box so they are immediately
-    // above the token text with no gap from vertical blank space.
-    svg.setAttribute('preserveAspectRatio', 'xMidYMax meet')
-    svg.setAttribute('width', '45mm')
-    svg.setAttribute('height', '11mm')
-  }, [value])
-  return (
-    <div ref={ref} style={{ width: '45mm', height: '11mm', overflow: 'hidden', flexShrink: 0 }}>
-      {/* width={0.7}: ~209px natural width → aspect ratio 4.18:1 ≈ container 4.09:1,
-          so bars fill ~10.77mm of the 11mm SVG height (only 0.23mm blank at top) */}
-      <Barcode value={value} format="CODE128" displayValue={false} height={50} width={0.7} margin={0} />
     </div>
   )
 }

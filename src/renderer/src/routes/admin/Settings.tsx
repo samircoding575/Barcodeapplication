@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { AppConfig, User1Account, SystemStats } from '@shared/types'
-import { useAppStore, useIsAdmin } from '../../store/appStore'
+import { useAppStore } from '../../store/appStore'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Button } from '../../components/ui/Button'
 import { Card, CardBody } from '../../components/ui/Card'
@@ -25,8 +25,7 @@ function Section({ title, description, children }: { title: string; description:
 export function Settings(): JSX.Element {
   const activeSession = useAppStore((s) => s.activeSession)
   const sessions = useAppStore((s) => s.sessions)
-  const isPrimaryAdmin = useIsAdmin()
-  const { locale, setLocale, t } = useLocale()
+  const { t } = useLocale()
 
   // Config state
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -89,9 +88,16 @@ export function Settings(): JSX.Element {
   async function handleDeleteUser(id: string, email: string): Promise<void> {
     if (!confirm(`Remove user account "${email}"? They will no longer be able to log in.`)) return
     setUserLoading(true)
-    await window.api.admin.deleteUser({ id })
-    setUsers((prev) => prev.filter((u) => u.id !== id))
-    setUserLoading(false)
+    try {
+      const res = await window.api.admin.deleteUser({ id })
+      if (res.success) {
+        setUsers((prev) => prev.filter((u) => u.id !== id))
+      } else {
+        alert(`Failed to remove user: ${res.error ?? 'Unknown error'}`)
+      }
+    } finally {
+      setUserLoading(false)
+    }
   }
 
   // ── Data management handlers ─────────────────────────────────────────────

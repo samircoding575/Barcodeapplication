@@ -2,7 +2,8 @@ import { ipcMain, dialog } from 'electron'
 import { readFileSync, writeFileSync } from 'fs'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { createId } from '@paralleldrive/cuid2'
+import { init } from '@paralleldrive/cuid2'
+const createId = init({ length: 10 })
 import bcrypt from 'bcryptjs'
 import { getDb } from '../db'
 import { AdminChannels, FileChannels, ModifyGradeRequestSchema } from '../../shared/ipc'
@@ -511,14 +512,25 @@ export function registerAdminHandlers(): void {
         create: { id: 'singleton' },
         update: {},
       })
-      return { orgName: cfg.orgName, orgNameAr: cfg.orgNameAr }
+      // Auto-migrate prior default sets forward to pure auto-centering (0, 0).
+      // Triggers on:
+      //   - stickerH ≈ 17 (very old absolute-offset defaults)
+      //   - topMm ≈ -5 AND leftMm ≈ -4 (intermediate Fit-mode calibration defaults)
+      const isOldStickerH = Math.abs(cfg.printStickerH - 17) < 0.01
+      const isFitModeDefaults = Math.abs(cfg.printTopMm - -5) < 0.01 && Math.abs(cfg.printLeftMm - -4) < 0.01
+      if (isOldStickerH || isFitModeDefaults) {
+        const migrated = { printTopMm: 0, printLeftMm: 0, printStickerW: 48.5, printStickerH: 16.9 }
+        await db.appConfig.update({ where: { id: 'singleton' }, data: migrated })
+        return { orgName: cfg.orgName, orgNameAr: cfg.orgNameAr, ...migrated }
+      }
+      return { orgName: cfg.orgName, orgNameAr: cfg.orgNameAr, printTopMm: cfg.printTopMm, printLeftMm: cfg.printLeftMm, printStickerW: cfg.printStickerW, printStickerH: cfg.printStickerH }
     } catch (err) {
       console.error('[admin/get-config]', err)
-      return { orgName: 'Lebanese Bar Association', orgNameAr: 'نقابة المحامين في بيروت' }
+      return { orgName: 'Lebanese Bar Association', orgNameAr: 'نقابة المحامين في بيروت', printTopMm: 0, printLeftMm: 0, printStickerW: 48.5, printStickerH: 16.9 }
     }
   }) as Parameters<typeof ipcMain.handle>[1])
 
-  ipcMain.handle(AdminChannels.UPDATE_CONFIG, requireAdmin(async (_, patch: Partial<{ orgName: string; orgNameAr: string }>) => {
+  ipcMain.handle(AdminChannels.UPDATE_CONFIG, requireAdmin(async (_, patch: Partial<{ orgName: string; orgNameAr: string; printTopMm: number; printLeftMm: number; printStickerW: number; printStickerH: number }>) => {
     try {
       const db = getDb()
       await db.appConfig.upsert({
@@ -656,7 +668,7 @@ export function registerAdminHandlers(): void {
       if (examId) {
         const summary = examSummaries.find((s) => s.examId === examId)
         if (!summary) return buildEmptyDashboard(sessionId, examId)
-        return { sessionId, examId, exams: examSummaries, ...summary }
+        return { ...summary, sessionId, examId, exams: examSummaries }
       }
 
       // Session-wide rollup

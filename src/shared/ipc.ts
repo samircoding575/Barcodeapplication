@@ -44,7 +44,7 @@ export const AdminChannels = {
   GET_DASHBOARD_DATA: 'admin/get-dashboard-data',
   MODIFY_GRADE: 'admin/modify-grade',
   GET_GRADE_LOG: 'admin/get-grade-log',
-  PRINT_BARCODES_PDF: 'admin/print-barcodes-pdf',
+  EXPORT_BARCODES_DOCX: 'admin/export-barcodes-docx',
 } as const
 
 export const TeacherChannels = {

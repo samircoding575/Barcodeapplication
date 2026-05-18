@@ -5,6 +5,7 @@ import { resolve } from 'path'
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    build: { sourcemap: false },
     resolve: {
       alias: {
         '@main': resolve('src/main'),
@@ -13,12 +14,14 @@ export default defineConfig({
     }
   },
   preload: {
+    build: { sourcemap: false },
     resolve: {
       alias: { '@shared': resolve('src/shared') }
     }
   },
   renderer: {
     plugins: [react()],
+    build: { sourcemap: false },
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),

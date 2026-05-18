@@ -34,6 +34,10 @@ export interface Exam {
 export interface AppConfig {
   orgName: string
   orgNameAr: string
+  printTopMm: number
+  printLeftMm: number
+  printStickerW: number
+  printStickerH: number
 }
 
 export interface AdminBarcode {
@@ -226,7 +230,7 @@ export interface WindowAPI {
     getDashboardData: (data: { sessionId: string; examId?: string }) => Promise<DashboardData>
     modifyGrade: (data: { barcodeId: string; newValue: number; reason: string }) => Promise<{ success: boolean; error?: string }>
     getGradeLog: (data: { sessionId?: string; examId?: string }) => Promise<GradeLogEntry[]>
-    printBarcodePdf: () => Promise<{ success: boolean; canceled?: boolean; error?: string }>
+    exportBarcodesDocx: (data: { records: Array<{ token: string; studentName: string; externalId: string; examName: string }> }) => Promise<{ success?: boolean; canceled?: boolean; error?: string }>
   }
   exam: {
     list: (data: { sessionId: string }) => Promise<Exam[]>

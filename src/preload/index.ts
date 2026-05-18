@@ -28,7 +28,8 @@ const api = {
     getDashboardData: (data: { sessionId: string; examId?: string }) => ipcRenderer.invoke(AdminChannels.GET_DASHBOARD_DATA, data),
     modifyGrade: (data: { barcodeId: string; newValue: number; reason: string }) => ipcRenderer.invoke(AdminChannels.MODIFY_GRADE, data),
     getGradeLog: (data?: { sessionId?: string; examId?: string }) => ipcRenderer.invoke(AdminChannels.GET_GRADE_LOG, data ?? {}),
-    printBarcodePdf: () => ipcRenderer.invoke(AdminChannels.PRINT_BARCODES_PDF),
+    exportBarcodesDocx: (data: { records: Array<{ token: string; studentName: string; externalId: string; examName: string }> }) =>
+      ipcRenderer.invoke(AdminChannels.EXPORT_BARCODES_DOCX, data),
   },
   exam: {
     list: (data: { sessionId: string }) => ipcRenderer.invoke(ExamChannels.LIST, data),

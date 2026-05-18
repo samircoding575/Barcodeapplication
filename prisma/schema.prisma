@@ -47,9 +47,13 @@ model Exam {
 }
 
 model AppConfig {
-  id        String @id @default("singleton")
-  orgName   String @default("Lebanese Bar Association")
-  orgNameAr String @default("نقابة المحامين في بيروت")
+  id            String @id @default("singleton")
+  orgName       String @default("Lebanese Bar Association")
+  orgNameAr     String @default("نقابة المحامين في بيروت")
+  printTopMm    Float  @default(0)
+  printLeftMm   Float  @default(0)
+  printStickerW Float  @default(48.5)
+  printStickerH Float  @default(16.9)
 }
 
 model Student {
